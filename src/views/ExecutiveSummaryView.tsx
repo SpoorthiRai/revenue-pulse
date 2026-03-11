@@ -29,15 +29,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function ExecutiveSummaryView() {
-  const { weekStart, weekEnd, rangeMode } = useWeek();
-
-  const getRangeEnd = () => {
-    if (rangeMode === 'week') return getSunday(weekStart);
-    if (rangeMode === 'month') { const d = new Date(weekStart); d.setDate(d.getDate() + 30); return d; }
-    if (rangeMode === 'quarter') { const d = new Date(weekStart); d.setDate(d.getDate() + 90); return d; }
-    return new Date('2026-12-31');
-  };
-  const end = getRangeEnd();
+  const { weekStart, weekEnd } = useWeek();
+  const end = weekEnd;
 
   // Previous period
   const prevStart = new Date(weekStart);
