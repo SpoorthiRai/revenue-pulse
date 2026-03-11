@@ -120,27 +120,26 @@ export function ExecutiveSummaryView() {
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
   const closedPct = (revenueClosed / ANNUAL_TARGET) * 100;
 
-  // ========== SECTION 3: Funnel ==========
-  const totalLeads = weekLeads.length;
-  const qualifiedLeads = weekLeads.filter(e => e.status !== 'Cancelled').length;
-  const proposalsSent = weekDeals.length; // all deals that reached deal stage
-  const negotiationCount = weekDeals.filter(d => ['Negotiation', 'Win', 'Lost'].includes(d.stage)).length;
-  const dealsWonCount = wonDeals.length;
+  // ========== SECTION 3: Simplified Funnel ==========
+  const funnelLeads = weekLeads.length;
+  const funnelConverted = weekLeads.filter(e => e.status === 'Converted').length;
+  const funnelDeals = weekDeals.length; // all deals (proposal/negotiation stage)
+  const funnelWon = wonDeals.length;
 
-  const funnelStages = [
-    { name: 'Leads', count: totalLeads },
-    { name: 'Qualified', count: qualifiedLeads },
-    { name: 'Proposals', count: proposalsSent },
-    { name: 'Negotiation', count: negotiationCount },
-    { name: 'Won', count: dealsWonCount },
+  const simpleFunnel = [
+    { name: 'Leads', count: funnelLeads, color: 'hsl(174,83%,32%)' },
+    { name: 'Converted', count: funnelConverted, color: 'hsl(160,84%,39%)' },
+    { name: 'Deals', count: funnelDeals, color: 'hsl(38,92%,50%)' },
+    { name: 'Won', count: funnelWon, color: 'hsl(217,91%,60%)' },
   ];
 
-  const funnelConversions = funnelStages.slice(0, -1).map((stage, i) => {
-    const next = funnelStages[i + 1];
+  const funnelConversions = simpleFunnel.slice(0, -1).map((stage, i) => {
+    const next = simpleFunnel[i + 1];
     const rate = stage.count > 0 ? (next.count / stage.count) * 100 : 0;
     return { from: stage.name, to: next.name, rate, drop: 100 - rate };
   });
   const biggestLeakage = funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]);
+  const maxFunnelCount = Math.max(...simpleFunnel.map(s => s.count), 1);
 
   // ========== SECTION 4: Pipeline Health ==========
   const pipelineByStage = useMemo(() => {
