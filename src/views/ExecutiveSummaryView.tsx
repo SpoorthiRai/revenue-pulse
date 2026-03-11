@@ -167,7 +167,7 @@ export function ExecutiveSummaryView() {
           <h3 className="text-sm font-semibold mb-4">Leads by Service Pillar</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie data={pillarCounts} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value" label={({ x, y, name, percent, textAnchor }) => (<text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" style={{ fontSize: '10px', fill: 'hsl(var(--foreground))' }}>{`${name} ${(percent * 100).toFixed(0)}%`}</text>)} labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}>
+              <Pie data={pillarCounts} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={2} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}>
                 {pillarCounts.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
