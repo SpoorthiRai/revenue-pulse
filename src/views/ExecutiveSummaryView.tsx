@@ -57,6 +57,9 @@ export function ExecutiveSummaryView() {
   const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
 
+  // WoW change rate (total deal activity)
+  const wowChange = percentChange(weekDeals.length, prevDeals.length);
+
   const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
   const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
   const negotiationDeals = weekDeals.filter(d => d.stage === 'Negotiation');
