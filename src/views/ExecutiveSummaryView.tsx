@@ -192,19 +192,6 @@ export function ExecutiveSummaryView() {
     return weeks;
   }, [weekStart, end]);
 
-  // ========== SECTION 7: Team Performance ==========
-  const teamData = useMemo(() => {
-    const reps = [...new Set(DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end)).map(d => d.assignedTo))];
-    return reps.map(name => {
-      const deals = weekDeals.filter(d => d.assignedTo === name);
-      const won = deals.filter(d => d.stage === 'Win');
-      const dec = deals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
-      const revenue = won.reduce((s, d) => s + d.negotiatedAmount, 0);
-      const wr = dec.length > 0 ? (won.length / dec.length) * 100 : 0;
-      const avg = won.length > 0 ? revenue / won.length : 0;
-      return { name, dealsClosed: won.length, revenue, winRate: wr, avgDeal: avg };
-    }).sort((a, b) => b.revenue - a.revenue);
-  }, [weekStart, end]);
 
   // ========== SECTION 8: Bottleneck (stuck deals) ==========
   const stuckDeals = useMemo(() => {
