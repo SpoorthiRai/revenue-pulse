@@ -269,7 +269,7 @@ export function ExecutiveSummaryView() {
     return items;
   }, [weekStart, end]);
 
-  const maxFunnelCount = Math.max(...funnelStages.map(s => s.count), 1);
+  
 
   return (
     <div className="space-y-6">
