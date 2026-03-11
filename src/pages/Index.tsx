@@ -6,8 +6,6 @@ import { AppHeader } from '@/components/AppHeader';
 import { ExecutiveSummaryView } from '@/views/ExecutiveSummaryView';
 import { PipelineView } from '@/views/PipelineView';
 import { ContractsView } from '@/views/ContractsView';
-import { InvoicingView } from '@/views/InvoicingView';
-import { PaymentsView } from '@/views/PaymentsView';
 import { TeamPerformanceView } from '@/views/TeamPerformanceView';
 import { formatDateShort } from '@/lib/formatters';
 
@@ -30,8 +28,6 @@ function DashboardContent() {
       case 'executive': return <ExecutiveSummaryView />;
       case 'pipeline': return <PipelineView />;
       case 'contracts': return <ContractsView />;
-      case 'invoicing': return <InvoicingView />;
-      case 'payments': return <PaymentsView />;
       case 'team': return <TeamPerformanceView />;
     }
   };
