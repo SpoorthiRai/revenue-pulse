@@ -22,18 +22,19 @@ export function AppHeader({ activeView }: { activeView: string }) {
   const setPreset = (mode: string) => {
     const now = new Date('2025-10-07');
     let start: Date;
-    let end = new Date(now);
+    let end: Date;
     if (mode === 'week') {
       start = getMonday(now);
       start.setDate(start.getDate() - 7);
       end = new Date(start);
       end.setDate(end.getDate() + 6);
     } else if (mode === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      end = new Date(now.getFullYear(), now.getMonth(), 0);
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     } else if (mode === 'quarter') {
-      start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-      end = new Date(now);
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), currentQuarter * 3, 1);
+      end = new Date(now.getFullYear(), currentQuarter * 3 + 3, 0);
     } else {
       start = new Date('2025-01-01');
       end = new Date('2025-12-31');
@@ -66,8 +67,8 @@ export function AppHeader({ activeView }: { activeView: string }) {
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           {[
             { key: 'week', label: 'Last Week' },
-            { key: 'month', label: 'Last Month' },
-            { key: 'quarter', label: 'Last Quarter' },
+            { key: 'month', label: 'This Month' },
+            { key: 'quarter', label: 'This Quarter' },
             { key: 'all', label: 'All Time' },
           ].map(b => (
             <button
