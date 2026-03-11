@@ -57,12 +57,21 @@ export function ExecutiveSummaryView() {
   const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
 
-  // Snapshot card data — only leads, deals, POs
+  const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
+  const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
+  const negotiationDeals = weekDeals.filter(d => d.stage === 'Negotiation');
+  const commercialProposalDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
+  const closedDeals = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+
+  // Snapshot card data
   const snapshotItems = [
-    { label: 'New Leads', value: weekLeads.length },
+    { label: 'Total Deals', value: weekDeals.length },
     { label: 'Deals Won', value: wonDeals.length },
-    { label: 'Deals Lost/Cancelled', value: lostCancelled.length },
-    { label: 'New POs', value: weekPOs.length },
+    { label: 'Deals Lost', value: lostDeals.length },
+    { label: 'Deals Cancel', value: cancelDeals.length },
+    { label: 'Commercial Proposal', value: commercialProposalDeals.length },
+    { label: 'Deals Negotiation', value: negotiationDeals.length },
+    { label: 'Deals Closed', value: closedDeals.length },
   ];
 
   // Funnel data — filtered by date range, no Invoiced/Paid
