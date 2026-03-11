@@ -1,0 +1,199 @@
+import { useMemo } from 'react';
+import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
+import { useWeek } from '@/context/WeekContext';
+import { KPICard } from '@/components/KPICard';
+import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
+import { StatusBadge } from '@/components/StatusBadge';
+import { TrendingUp, DollarSign, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
+  FunnelChart, Funnel, LabelList
+} from 'recharts';
+
+const COLORS = ['#0D9488', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899'];
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border rounded-lg shadow-lg p-3 text-xs">
+      <p className="font-medium text-foreground mb-1">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <p key={i} style={{ color: p.color }} className="flex justify-between gap-4">
+          <span>{p.name}:</span>
+          <span className="font-medium">{typeof p.value === 'number' && p.value > 1000 ? formatCurrency(p.value) : p.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+export function ExecutiveSummaryView() {
+  const { weekStart, weekEnd, rangeMode } = useWeek();
+
+  const getRangeEnd = () => {
+    if (rangeMode === 'week') return getSunday(weekStart);
+    if (rangeMode === 'month') { const d = new Date(weekStart); d.setDate(d.getDate() + 30); return d; }
+    if (rangeMode === 'quarter') { const d = new Date(weekStart); d.setDate(d.getDate() + 90); return d; }
+    return new Date('2026-12-31');
+  };
+  const end = getRangeEnd();
+
+  // Previous period
+  const prevStart = new Date(weekStart);
+  const diff = end.getTime() - weekStart.getTime();
+  prevStart.setTime(weekStart.getTime() - diff);
+  const prevEnd = new Date(weekStart);
+  prevEnd.setTime(prevEnd.getTime() - 1);
+
+  const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
+  const prevLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
+  const weekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+  const prevDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
+  const weekPOs = PO_DATA.filter(p => isInRange(p.startDate, weekStart, end));
+  const weekInvoices = INVOICE_DATA.filter(i => isInRange(i.invoiceDate, weekStart, end));
+  const prevInvoices = INVOICE_DATA.filter(i => isInRange(i.invoiceDate, prevStart, prevEnd));
+  const weekPayments = INVOICE_DATA.filter(i => isInRange(i.receivedDate, weekStart, end));
+
+  const wonDeals = weekDeals.filter(d => d.stage === 'Win');
+  const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
+  const lostCancelled = weekDeals.filter(d => d.stage === 'Lost' || d.stage === 'Cancel');
+
+  // KPI values
+  const pipelineValue = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const prevPipelineValue = prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const cashCollected = weekPayments.reduce((s, i) => s + i.amountReceived, 0);
+  const prevCash = INVOICE_DATA.filter(i => isInRange(i.receivedDate, prevStart, prevEnd)).reduce((s, i) => s + i.amountReceived, 0);
+  const outstanding = weekInvoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + i.balance, 0);
+  const prevOutstanding = prevInvoices.filter(i => i.status !== 'Paid').reduce((s, i) => s + i.balance, 0);
+
+  const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+  const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
+  const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+  const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
+
+  // Snapshot card data
+  const snapshotItems = [
+    { label: 'New Leads', value: weekLeads.length },
+    { label: 'Deals Won', value: wonDeals.length },
+    { label: 'Deals Lost/Cancelled', value: lostCancelled.length },
+    { label: 'New POs', value: weekPOs.length },
+    { label: 'Invoices Raised', value: weekInvoices.length },
+    { label: 'Payments Received', value: weekPayments.length },
+    { label: 'Overdue Items', value: weekInvoices.filter(i => i.status === 'Pending' && new Date(i.dueDate) < new Date()).length },
+  ];
+
+  // Funnel data
+  const allConverted = ENQUIRY_DATA.filter(e => e.status === 'Converted').length;
+  const allWon = DEAL_DATA.filter(d => d.stage === 'Win').length;
+  const allInvoiced = INVOICE_DATA.length;
+  const allPaid = INVOICE_DATA.filter(i => i.status === 'Paid').length;
+  const funnelData = [
+    { name: 'Leads', value: ENQUIRY_DATA.length, fill: '#0D9488' },
+    { name: 'Converted', value: allConverted, fill: '#10B981' },
+    { name: 'Deals', value: DEAL_DATA.length, fill: '#3B82F6' },
+    { name: 'Won', value: allWon, fill: '#8B5CF6' },
+    { name: 'Invoiced', value: allInvoiced, fill: '#F59E0B' },
+    { name: 'Paid', value: allPaid, fill: '#EC4899' },
+  ];
+
+  // Leads by pillar donut
+  const pillarCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    ENQUIRY_DATA.forEach(e => { map[e.pillar] = (map[e.pillar] || 0) + 1; });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, []);
+
+  // Weekly activity (last 8 weeks from reference date)
+  const weeklyActivity = useMemo(() => {
+    const weeks: { week: string; leads: number; deals: number; invoices: number; payments: number }[] = [];
+    const refDate = new Date('2025-10-07');
+    for (let i = 7; i >= 0; i--) {
+      const mon = getMonday(new Date(refDate.getTime() - i * 7 * 86400000));
+      const sun = getSunday(mon);
+      const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
+      weeks.push({
+        week: label,
+        leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, sun)).length,
+        deals: DEAL_DATA.filter(d => isInRange(d.closeDate, mon, sun)).length,
+        invoices: INVOICE_DATA.filter(i => isInRange(i.invoiceDate, mon, sun)).length,
+        payments: INVOICE_DATA.filter(i => isInRange(i.receivedDate, mon, sun)).length,
+      });
+    }
+    return weeks;
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      {/* Snapshot card */}
+      <div className="bg-accent border-l-4 border-primary rounded-lg p-5">
+        <h3 className="text-sm font-semibold text-accent-foreground mb-3">
+          Week of {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </h3>
+        <div className="grid grid-cols-7 gap-4">
+          {snapshotItems.map(item => (
+            <div key={item.label} className="text-center">
+              <p className="text-2xl font-bold text-foreground">{item.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} previousValue={formatCurrencyShort(prevPipelineValue)} change={percentChange(pipelineValue, prevPipelineValue)} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
+        <KPICard title="Cash Collected" value={formatCurrencyShort(cashCollected)} previousValue={formatCurrencyShort(prevCash)} change={percentChange(cashCollected, prevCash)} icon={<DollarSign className="h-5 w-5 text-success" />} />
+        <KPICard title="Outstanding Balance" value={formatCurrencyShort(outstanding)} previousValue={formatCurrencyShort(prevOutstanding)} change={percentChange(outstanding, prevOutstanding)} icon={<AlertCircle className="h-5 w-5 text-warning" />} positive={false} />
+        <KPICard title="Win Rate" value={`${winRate.toFixed(0)}%`} previousValue={`${prevWinRate.toFixed(0)}%`} change={percentChange(winRate, prevWinRate)} icon={<CheckCircle className="h-5 w-5 text-primary" />} />
+      </div>
+
+      {/* Funnel chart */}
+      <div className="bg-card rounded-lg border p-5">
+        <h3 className="text-sm font-semibold mb-4">Revenue Funnel</h3>
+        <ResponsiveContainer width="100%" height={200}>
+          <FunnelChart>
+            <Tooltip content={<CustomTooltip />} />
+            <Funnel dataKey="value" data={funnelData} isAnimationActive>
+              <LabelList position="right" fill="hsl(215,28%,17%)" fontSize={12} formatter={(v: number) => v} />
+              <LabelList position="center" fill="#fff" fontSize={11} dataKey="name" />
+            </Funnel>
+          </FunnelChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {/* Donut */}
+        <div className="bg-card rounded-lg border p-5">
+          <h3 className="text-sm font-semibold mb-4">Leads by Service Pillar</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie data={pillarCounts} cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                {pillarCounts.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Weekly activity */}
+        <div className="bg-card rounded-lg border p-5">
+          <h3 className="text-sm font-semibold mb-4">Weekly Activity (Last 8 Weeks)</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={weeklyActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis fontSize={11} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="leads" stroke="#0D9488" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="deals" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="invoices" stroke="#F59E0B" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="payments" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
