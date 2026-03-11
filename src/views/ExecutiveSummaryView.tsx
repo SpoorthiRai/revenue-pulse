@@ -286,6 +286,49 @@ export function ExecutiveSummaryView() {
         ))}
       </div>
 
+      {/* Operational Snapshot Cards */}
+      {(() => {
+        const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
+        const prevLostDeals = prevDeals.filter(d => d.stage === 'Lost');
+        const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
+        const prevCancelDeals = prevDeals.filter(d => d.stage === 'Cancel');
+        const cpDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
+        const prevCpDeals = prevDeals.filter(d => d.stage === 'Commercial Proposal');
+        const negDeals = weekDeals.filter(d => d.stage === 'Negotiation');
+        const prevNegDeals = prevDeals.filter(d => d.stage === 'Negotiation');
+        const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
+        const prevClosedDeals = prevDeals.filter(d => d.stage === 'Closed');
+
+        const snapCards = [
+          { title: 'Total Leads', current: weekLeads.length, prev: prevLeads.length },
+          { title: 'Total Deals', current: weekDeals.length, prev: prevDeals.length },
+          { title: 'Deals Won', current: wonDeals.length, prev: prevWonDeals.length },
+          { title: 'Deals Lost', current: lostDeals.length, prev: prevLostDeals.length, positive: false },
+          { title: 'Deals Cancel', current: cancelDeals.length, prev: prevCancelDeals.length, positive: false },
+          { title: 'Deals Commercial Proposal', current: cpDeals.length, prev: prevCpDeals.length },
+          { title: 'Deals Negotiation', current: negDeals.length, prev: prevNegDeals.length },
+          { title: 'Deals Closed', current: closedDeals.length, prev: prevClosedDeals.length },
+        ];
+
+        return (
+          <div className="grid grid-cols-4 gap-3">
+            {snapCards.map(card => {
+              const change = percentChange(card.current, card.prev);
+              return (
+                <div key={card.title} className="bg-card rounded-lg border p-3 hover:shadow-md transition-shadow">
+                  <p className="text-xs text-muted-foreground font-medium mb-1">{card.title}</p>
+                  <p className="text-lg font-bold text-foreground">{card.current}</p>
+                  <div className="mt-1.5 space-y-0.5">
+                    <TrendBadge change={change} />
+                    <p className="text-xs text-muted-foreground">{card.prev}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
 
       <div className="grid grid-cols-2 gap-4">
         {/* SECTION 3: Simplified Sales Funnel */}
