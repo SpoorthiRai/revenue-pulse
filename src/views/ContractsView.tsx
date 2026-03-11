@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { PO_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatCurrencyShort, formatCurrency, isInRange, getSunday } from '@/lib/formatters';
+import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
 import { FileText, DollarSign, Calendar, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
@@ -28,6 +28,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function ContractsView() {
+  const { poData: PO_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
   const end = weekEnd;
 
@@ -35,18 +36,17 @@ export function ContractsView() {
 
   const activePOs = PO_DATA.filter(p => p.status === 'Active');
   const totalCV = PO_DATA.reduce((s, p) => s + p.totalValue, 0);
-  const avgMonthly = PO_DATA.reduce((s, p) => s + p.monthlyBilling, 0) / PO_DATA.length;
-  const avgDuration = PO_DATA.reduce((s, p) => s + p.duration, 0) / PO_DATA.length;
+  const avgMonthly = PO_DATA.length > 0 ? PO_DATA.reduce((s, p) => s + p.monthlyBilling, 0) / PO_DATA.length : 0;
+  const avgDuration = PO_DATA.length > 0 ? PO_DATA.reduce((s, p) => s + p.duration, 0) / PO_DATA.length : 0;
 
   const categoryData = useMemo(() => {
     const map: Record<string, number> = {};
     PO_DATA.forEach(p => { map[p.serviceCategory] = (map[p.serviceCategory] || 0) + p.totalValue; });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, []);
+  }, [PO_DATA]);
 
-  // Timeline data
   const timelineStart = new Date('2025-04-01');
-  const timelineEnd = new Date('2026-04-01');
+  const timelineEnd = new Date('2026-07-01');
   const totalDays = (timelineEnd.getTime() - timelineStart.getTime()) / 86400000;
 
   const now = new Date('2025-10-07');
@@ -81,9 +81,8 @@ export function ContractsView() {
           </ResponsiveContainer>
         </div>
 
-        {/* Gantt-style timeline */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">PO Timeline (Apr 2025 – Mar 2026)</h3>
+          <h3 className="text-sm font-semibold mb-4">PO Timeline</h3>
           <div className="space-y-2">
             {PO_DATA.map(po => {
               const start = Math.max(0, (new Date(po.startDate).getTime() - timelineStart.getTime()) / 86400000);
@@ -112,12 +111,11 @@ export function ContractsView() {
             })}
           </div>
           <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-            <span>Apr '25</span><span>Jul '25</span><span>Oct '25</span><span>Jan '26</span><span>Mar '26</span>
+            <span>Apr '25</span><span>Jul '25</span><span>Oct '25</span><span>Jan '26</span><span>Apr '26</span>
           </div>
         </div>
       </div>
 
-      {/* PO Table */}
       <div className="bg-card rounded-lg border overflow-x-auto">
         <table className="w-full text-sm table-zebra">
           <thead>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
 import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
@@ -40,6 +40,7 @@ function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: nu
 }
 
 export function ExecutiveSummaryView() {
+  const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
   const end = weekEnd;
 
@@ -76,7 +77,6 @@ export function ExecutiveSummaryView() {
   const avgDealSize = wonDeals.length > 0 ? revenueWon / wonDeals.length : 0;
   const prevAvgDealSize = prevWonDeals.length > 0 ? prevRevenueWon / prevWonDeals.length : 0;
 
-  // Sales cycle: avg days from lead creation to deal close for won deals
   const salesCycleDays = useMemo(() => {
     const days = wonDeals.map(d => {
       const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
@@ -84,7 +84,7 @@ export function ExecutiveSummaryView() {
       return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
     }).filter(Boolean) as number[];
     return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
-  }, [weekStart, end]);
+  }, [wonDeals, ENQUIRY_DATA]);
 
   const prevSalesCycleDays = useMemo(() => {
     const days = prevWonDeals.map(d => {
@@ -93,7 +93,7 @@ export function ExecutiveSummaryView() {
       return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
     }).filter(Boolean) as number[];
     return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
-  }, [prevStart, prevEnd]);
+  }, [prevWonDeals, ENQUIRY_DATA]);
 
   const convertedLeads = weekLeads.filter(e => e.status === 'Converted').length;
   const prevConvertedLeads = prevLeads.filter(e => e.status === 'Converted').length;
@@ -110,7 +110,7 @@ export function ExecutiveSummaryView() {
   ];
 
   // ========== Revenue & Pipeline calculations ==========
-  const ANNUAL_TARGET = 50000000; // ₹5 Cr
+  const ANNUAL_TARGET = 50000000;
   const revenueClosed = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
   const weightedPipeline = DEAL_DATA.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
@@ -119,7 +119,7 @@ export function ExecutiveSummaryView() {
   // ========== SECTION 3: Simplified Funnel ==========
   const funnelLeads = weekLeads.length;
   const funnelConverted = weekLeads.filter(e => e.status === 'Converted').length;
-  const funnelDeals = weekDeals.length; // all deals (proposal/negotiation stage)
+  const funnelDeals = weekDeals.length;
   const funnelWon = wonDeals.length;
 
   const simpleFunnel = [
@@ -144,7 +144,7 @@ export function ExecutiveSummaryView() {
       const deals = weekDeals.filter(d => d.stage === stage);
       return { stage, deals: deals.length, value: deals.reduce((s, d) => s + d.expectedAmount, 0) };
     }).filter(s => s.deals > 0);
-  }, [weekStart, end]);
+  }, [weekDeals]);
 
   const totalPipelineActive = DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
     .reduce((s, d) => s + d.expectedAmount, 0);
@@ -162,7 +162,7 @@ export function ExecutiveSummaryView() {
       const wr = pillarDecided.length > 0 ? (deals.length / pillarDecided.length) * 100 : 0;
       return { pillar, leads, dealsWon: deals.length, revenue, winRate: wr };
     }).filter(s => s.leads > 0 || s.dealsWon > 0).sort((a, b) => b.revenue - a.revenue);
-  }, [weekStart, end]);
+  }, [weekLeads, wonDeals, weekDeals, ENQUIRY_DATA]);
 
   const revenueByPillar = servicePillarData.filter(s => s.revenue > 0).map(s => ({
     name: s.pillar,
@@ -195,28 +195,16 @@ export function ExecutiveSummaryView() {
       current += 7 * 86400000;
     }
     return weeks;
-  }, [weekStart, end]);
+  }, [weekStart, end, ENQUIRY_DATA, DEAL_DATA]);
 
-
-  // ========== SECTION 8: Bottleneck (stuck deals) ==========
+  // ========== SECTION 8: Bottleneck ==========
   const stuckDeals = useMemo(() => {
     const today = new Date('2025-10-07');
-    return DEAL_DATA.filter(d => {
-      if (['Win', 'Lost', 'Cancel'].includes(d.stage)) return false;
-      const daysSince = (today.getTime() - new Date(d.closeDate).getTime()) / 86400000;
-      return daysSince < 0; // deals with future close dates are "in progress"
-    }).length === 0
-      ? DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
-          const today2 = new Date('2025-10-07');
-          const daysInStage = Math.abs(Math.round((today2.getTime() - new Date(d.closeDate).getTime()) / 86400000));
-          return { ...d, daysInStage };
-        })
-      : DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
-          const today2 = new Date('2025-10-07');
-          const daysInStage = Math.abs(Math.round((today2.getTime() - new Date(d.closeDate).getTime()) / 86400000));
-          return { ...d, daysInStage };
-        });
-  }, []);
+    return DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
+      const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.closeDate).getTime()) / 86400000));
+      return { ...d, daysInStage };
+    });
+  }, [DEAL_DATA]);
 
   const stuckByStage = useMemo(() => {
     const map: Record<string, number> = {};
@@ -255,9 +243,7 @@ export function ExecutiveSummaryView() {
     }
 
     return items;
-  }, [weekStart, end]);
-
-  
+  }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement]);
 
   return (
     <div className="space-y-6">
@@ -328,7 +314,6 @@ export function ExecutiveSummaryView() {
           </div>
         );
       })()}
-
 
       <div className="grid grid-cols-2 gap-4">
         {/* SECTION 3: Simplified Sales Funnel */}
@@ -402,7 +387,6 @@ export function ExecutiveSummaryView() {
             <p className="text-xs text-muted-foreground mb-4">No active pipeline deals in selected period.</p>
           )}
 
-          {/* Bottleneck Detection inline */}
           {stuckDeals.length > 0 && (
             <div className="mt-4">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
@@ -456,7 +440,6 @@ export function ExecutiveSummaryView() {
           )}
         </div>
 
-        {/* Revenue by Pillar bar chart */}
         <div className="bg-card rounded-lg border p-5">
           <h3 className="text-sm font-semibold mb-4">Revenue Contribution by Service</h3>
           {revenueByPillar.length > 0 ? (
@@ -498,7 +481,6 @@ export function ExecutiveSummaryView() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-
 
       {/* SECTION 9: Key Insights */}
       <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">

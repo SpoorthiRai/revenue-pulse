@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ENQUIRY_DATA, DEAL_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
-import { formatCurrencyShort, formatCurrency, isInRange, getSunday } from '@/lib/formatters';
+import { formatCurrencyShort, formatCurrency, isInRange } from '@/lib/formatters';
 import { Users, CheckCircle, TrendingUp, DollarSign, ArrowUpDown } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend
@@ -28,6 +28,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const STAGE_COLORS: Record<string, string> = { Win: '#10B981', Negotiation: '#F59E0B', Cancel: '#EF4444', Lost: '#9CA3AF' };
 
 export function PipelineView() {
+  const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
   const end = weekEnd;
 
@@ -52,7 +53,7 @@ export function PipelineView() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return data;
-  }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir]);
+  }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir, ENQUIRY_DATA]);
 
   const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
   const converted = weekLeads.filter(e => e.status === 'Converted').length;
@@ -62,28 +63,25 @@ export function PipelineView() {
   const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
   const pipelineValue = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
 
-  // Leads by source
   const sourceData = useMemo(() => {
     const map: Record<string, number> = {};
     ENQUIRY_DATA.forEach(e => { map[e.source] = (map[e.source] || 0) + 1; });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, []);
+  }, [ENQUIRY_DATA]);
 
-  // Deal stage chart
   const stageData = useMemo(() => {
     const map: Record<string, number> = {};
     DEAL_DATA.forEach(d => { map[d.stage] = (map[d.stage] || 0) + 1; });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, []);
+  }, [DEAL_DATA]);
 
-  // Expected vs Negotiated
   const comparisonData = useMemo(() => {
     return DEAL_DATA.slice(0, 15).map(d => ({
       name: d.company.length > 15 ? d.company.slice(0, 15) + '…' : d.company,
       Expected: d.expectedAmount,
       Negotiated: d.negotiatedAmount,
     }));
-  }, []);
+  }, [DEAL_DATA]);
 
   const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
   const statuses = [...new Set(ENQUIRY_DATA.map(e => e.status))];
@@ -149,7 +147,6 @@ export function PipelineView() {
         </div>
       </div>
 
-      {/* Leads table */}
       <div className="bg-card rounded-lg border">
         <div className="p-4 border-b flex items-center gap-3 flex-wrap">
           <input

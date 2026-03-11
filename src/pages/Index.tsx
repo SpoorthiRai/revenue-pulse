@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { WeekProvider, useWeek } from '@/context/WeekContext';
+import { DataProvider, useData } from '@/context/DataContext';
 import { AppSidebar, ViewId } from '@/components/AppSidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { ExecutiveSummaryView } from '@/views/ExecutiveSummaryView';
@@ -13,10 +14,18 @@ import { formatDateShort } from '@/lib/formatters';
 function DashboardContent() {
   const [activeView, setActiveView] = useState<ViewId>('executive');
   const { weekStart, weekEnd } = useWeek();
+  const { isLoading } = useData();
 
   const weekLabel = `${formatDateShort(weekStart)} – ${formatDateShort(weekEnd)}`;
 
   const renderView = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-muted-foreground text-sm">Loading data...</div>
+        </div>
+      );
+    }
     switch (activeView) {
       case 'executive': return <ExecutiveSummaryView />;
       case 'pipeline': return <PipelineView />;
@@ -41,9 +50,11 @@ function DashboardContent() {
 }
 
 const Index = () => (
-  <WeekProvider>
-    <DashboardContent />
-  </WeekProvider>
+  <DataProvider>
+    <WeekProvider>
+      <DashboardContent />
+    </WeekProvider>
+  </DataProvider>
 );
 
 export default Index;
