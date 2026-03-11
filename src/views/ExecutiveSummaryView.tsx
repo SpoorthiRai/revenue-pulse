@@ -299,55 +299,6 @@ export function ExecutiveSummaryView() {
         ))}
       </div>
 
-      {/* SECTION 2: Revenue Forecast & Target */}
-      <div className="bg-card rounded-lg border p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Target className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Revenue Forecast & Target Tracking</h3>
-        </div>
-        <div className="grid grid-cols-4 gap-6 mb-5">
-          <div>
-            <p className="text-xs text-muted-foreground">Annual Target</p>
-            <p className="text-lg font-bold text-foreground">{formatCurrencyShort(ANNUAL_TARGET)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Revenue Closed</p>
-            <p className="text-lg font-bold text-success">{formatCurrencyShort(revenueClosed)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Weighted Pipeline</p>
-            <p className="text-lg font-bold text-warning">{formatCurrencyShort(weightedPipeline)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Forecasted Revenue</p>
-            <p className="text-lg font-bold text-primary">{formatCurrencyShort(forecastedRevenue)}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-foreground">Target Achievement</span>
-            <span className={`font-bold ${targetAchievement >= 90 ? 'text-success' : targetAchievement >= 70 ? 'text-warning' : 'text-destructive'}`}>
-              {targetAchievement.toFixed(0)}% of target
-            </span>
-          </div>
-          <div className="relative">
-            <Progress value={Math.min(closedPct, 100)} className="h-3" />
-            {/* Weighted pipeline overlay */}
-            <div
-              className="absolute top-0 h-3 rounded-r-full opacity-40"
-              style={{
-                left: `${Math.min(closedPct, 100)}%`,
-                width: `${Math.min((weightedPipeline / ANNUAL_TARGET) * 100, 100 - closedPct)}%`,
-                backgroundColor: 'hsl(var(--warning))',
-              }}
-            />
-          </div>
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Closed</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning opacity-40" /> Weighted Pipeline</span>
-          </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-2 gap-4">
         {/* SECTION 3: Sales Funnel */}
