@@ -3,7 +3,7 @@ import { ENQUIRY_DATA, DEAL_DATA, PO_DATA } from '@/data/constants';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
-import { TrendingUp, CheckCircle } from 'lucide-react';
+import { TrendingUp, CheckCircle, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
@@ -57,12 +57,24 @@ export function ExecutiveSummaryView() {
   const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
 
-  // Snapshot card data — only leads, deals, POs
+  // WoW change rate (total deal activity)
+  const wowChange = percentChange(weekDeals.length, prevDeals.length);
+
+  const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
+  const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
+  const negotiationDeals = weekDeals.filter(d => d.stage === 'Negotiation');
+  const commercialProposalDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
+  const closedDeals = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+
+  // Snapshot card data
   const snapshotItems = [
-    { label: 'New Leads', value: weekLeads.length },
+    { label: 'Total Deals', value: weekDeals.length },
     { label: 'Deals Won', value: wonDeals.length },
-    { label: 'Deals Lost/Cancelled', value: lostCancelled.length },
-    { label: 'New POs', value: weekPOs.length },
+    { label: 'Deals Lost', value: lostDeals.length },
+    { label: 'Deals Cancel', value: cancelDeals.length },
+    { label: 'Commercial Proposal', value: commercialProposalDeals.length },
+    { label: 'Deals Negotiation', value: negotiationDeals.length },
+    { label: 'Deals Closed', value: closedDeals.length },
   ];
 
   // Funnel data — filtered by date range, no Invoiced/Paid
@@ -108,7 +120,7 @@ export function ExecutiveSummaryView() {
         <h3 className="text-sm font-semibold text-accent-foreground mb-3">
           Week of {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </h3>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-7 gap-4">
           {snapshotItems.map(item => (
             <div key={item.label} className="text-center">
               <p className="text-2xl font-bold text-foreground">{item.value}</p>
@@ -118,16 +130,17 @@ export function ExecutiveSummaryView() {
         </div>
       </div>
 
-      {/* KPI cards — only Pipeline Value and Win Rate */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* KPI cards */}
+      <div className="grid grid-cols-3 gap-4">
         <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} previousValue={formatCurrencyShort(prevPipelineValue)} change={percentChange(pipelineValue, prevPipelineValue)} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
         <KPICard title="Win Rate" value={`${winRate.toFixed(0)}%`} previousValue={`${prevWinRate.toFixed(0)}%`} change={percentChange(winRate, prevWinRate)} icon={<CheckCircle className="h-5 w-5 text-primary" />} />
+        <KPICard title="WoW Change Rate" value={`${wowChange.value.toFixed(1)}%`} previousValue={`${prevDeals.length} deals`} change={wowChange} icon={<Activity className="h-5 w-5 text-primary" />} />
       </div>
 
-      {/* Funnel chart */}
+      {/* Funnel chart with conversion rates */}
       <div className="bg-card rounded-lg border p-5">
         <h3 className="text-sm font-semibold mb-4">Revenue Funnel</h3>
-        <ResponsiveContainer width="100%" height={200}>
+        <ResponsiveContainer width="100%" height={220}>
           <FunnelChart>
             <Tooltip content={<CustomTooltip />} />
             <Funnel dataKey="value" data={funnelData} isAnimationActive>
@@ -136,6 +149,10 @@ export function ExecutiveSummaryView() {
             </Funnel>
           </FunnelChart>
         </ResponsiveContainer>
+        <div className="flex justify-center gap-8 mt-3 text-xs text-muted-foreground">
+          <span>Lead → Converted: <strong className="text-foreground">{filteredLeads.length > 0 ? ((filteredConverted / filteredLeads.length) * 100).toFixed(1) : 0}%</strong></span>
+          <span>Deals → Won: <strong className="text-foreground">{filteredDeals.length > 0 ? ((filteredWon / filteredDeals.length) * 100).toFixed(1) : 0}%</strong></span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
