@@ -73,7 +73,7 @@ export function ExecutiveSummaryView() {
     { label: 'Deals Won', value: wonDeals.length },
     { label: 'Deals Lost', value: lostDeals.length },
     { label: 'Deals Cancel', value: cancelDeals.length },
-    { label: 'Commercial Proposal', value: commercialProposalDeals.length },
+    { label: 'Deals in Commercial Proposal', value: commercialProposalDeals.length },
     { label: 'Deals Negotiation', value: negotiationDeals.length },
     { label: 'Deals Closed', value: closedDeals.length },
   ];
