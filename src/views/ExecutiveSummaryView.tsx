@@ -300,48 +300,47 @@ export function ExecutiveSummaryView() {
 
 
       <div className="grid grid-cols-2 gap-4">
-        {/* SECTION 3: Sales Funnel */}
+        {/* SECTION 3: Simplified Sales Funnel */}
         <div className="bg-card rounded-lg border p-5">
           <h3 className="text-sm font-semibold mb-4">Sales Funnel Conversion</h3>
-          <div className="space-y-2">
-            {funnelStages.map((stage, i) => {
+          <div className="space-y-4">
+            {simpleFunnel.map((stage, i) => {
               const widthPct = maxFunnelCount > 0 ? (stage.count / maxFunnelCount) * 100 : 0;
+              const conversion = i > 0 ? funnelConversions[i - 1] : null;
               return (
                 <div key={stage.name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-foreground">{stage.name}</span>
-                    <span className="font-bold">{stage.count}</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-6 flex items-center overflow-hidden">
-                    <div
-                      className="h-full rounded-full flex items-center justify-end pr-2 text-xs font-medium transition-all"
-                      style={{
-                        width: `${Math.max(widthPct, 8)}%`,
-                        backgroundColor: COLORS[i % COLORS.length],
-                        color: 'white',
-                      }}
-                    >
-                      {widthPct > 15 && stage.count}
-                    </div>
-                  </div>
-                  {i < funnelStages.length - 1 && funnelConversions[i] && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2 mt-0.5">
-                      <span>↓ {funnelConversions[i].rate.toFixed(0)}% conversion</span>
-                      {funnelConversions[i] === biggestLeakage && funnelConversions[i].drop > 20 && (
-                        <span className="text-destructive font-medium flex items-center gap-0.5">
-                          <AlertTriangle className="h-3 w-3" /> Biggest drop-off
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground text-sm">{stage.name}</span>
+                      {conversion && (
+                        <span className="text-muted-foreground">
+                          {conversion.rate.toFixed(0)}% from {conversion.from}
                         </span>
                       )}
                     </div>
-                  )}
+                    <span className="font-bold text-foreground text-sm">{stage.count}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-7 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all flex items-center justify-end pr-3"
+                      style={{
+                        width: `${Math.max(widthPct, 8)}%`,
+                        backgroundColor: stage.color,
+                      }}
+                    >
+                      {widthPct > 15 && (
+                        <span className="text-xs font-bold text-white">{stage.count}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
-          {biggestLeakage && biggestLeakage.drop > 20 && (
-            <div className="mt-3 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
+          {biggestLeakage && biggestLeakage.drop > 10 && (
+            <div className="mt-4 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5" />
-              Biggest leakage at {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
+              Biggest drop occurs between {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
             </div>
           )}
         </div>
