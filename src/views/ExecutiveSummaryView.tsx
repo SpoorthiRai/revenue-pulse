@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
 import { useWeek } from '@/context/WeekContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
-import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, Users, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -101,46 +101,41 @@ export function ExecutiveSummaryView() {
   const prevLeadConversionRate = prevLeads.length > 0 ? (prevConvertedLeads / prevLeads.length) * 100 : 0;
 
   const kpis = [
-    { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
-    { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), change: percentChange(pipelineValue, prevPipelineValue), icon: <BarChart3 className="h-4 w-4" /> },
-    { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
-    { title: 'Avg Deal Size', value: formatCurrencyShort(avgDealSize), change: percentChange(avgDealSize, prevAvgDealSize), icon: <Target className="h-4 w-4" /> },
-    { title: 'Sales Cycle', value: `${salesCycleDays} days`, change: percentChange(salesCycleDays, prevSalesCycleDays), positive: false, icon: <Clock className="h-4 w-4" /> },
-    { title: 'Lead Conversion', value: `${leadConversionRate.toFixed(0)}%`, change: percentChange(leadConversionRate, prevLeadConversionRate), icon: <Activity className="h-4 w-4" /> },
+    { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), prevValue: formatCurrencyShort(prevRevenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
+    { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), prevValue: formatCurrencyShort(prevPipelineValue), change: percentChange(pipelineValue, prevPipelineValue), icon: <BarChart3 className="h-4 w-4" /> },
+    { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, prevValue: `${prevWinRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
+    { title: 'Avg Deal Size', value: formatCurrencyShort(avgDealSize), prevValue: formatCurrencyShort(prevAvgDealSize), change: percentChange(avgDealSize, prevAvgDealSize), icon: <Target className="h-4 w-4" /> },
+    { title: 'Sales Cycle', value: `${salesCycleDays} days`, prevValue: `${prevSalesCycleDays} days`, change: percentChange(salesCycleDays, prevSalesCycleDays), positive: false, icon: <Clock className="h-4 w-4" /> },
+    { title: 'Lead Conversion', value: `${leadConversionRate.toFixed(0)}%`, prevValue: `${prevLeadConversionRate.toFixed(0)}%`, change: percentChange(leadConversionRate, prevLeadConversionRate), icon: <Activity className="h-4 w-4" /> },
   ];
 
-  // ========== SECTION 2: Revenue Forecast ==========
-  // Use all-time data for annual target tracking
+  // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000; // ₹5 Cr
-  const allWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
-  const revenueClosed = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
-  const activeNegotiationDeals = DEAL_DATA.filter(d => d.stage === 'Negotiation');
-  const weightedPipeline = activeNegotiationDeals.reduce((s, d) => s + d.expectedAmount * 0.6, 0);
+  const revenueClosed = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  const weightedPipeline = DEAL_DATA.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
-  const closedPct = (revenueClosed / ANNUAL_TARGET) * 100;
 
-  // ========== SECTION 3: Funnel ==========
-  const totalLeads = weekLeads.length;
-  const qualifiedLeads = weekLeads.filter(e => e.status !== 'Cancelled').length;
-  const proposalsSent = weekDeals.length; // all deals that reached deal stage
-  const negotiationCount = weekDeals.filter(d => ['Negotiation', 'Win', 'Lost'].includes(d.stage)).length;
-  const dealsWonCount = wonDeals.length;
+  // ========== SECTION 3: Simplified Funnel ==========
+  const funnelLeads = weekLeads.length;
+  const funnelConverted = weekLeads.filter(e => e.status === 'Converted').length;
+  const funnelDeals = weekDeals.length; // all deals (proposal/negotiation stage)
+  const funnelWon = wonDeals.length;
 
-  const funnelStages = [
-    { name: 'Leads', count: totalLeads },
-    { name: 'Qualified', count: qualifiedLeads },
-    { name: 'Proposals', count: proposalsSent },
-    { name: 'Negotiation', count: negotiationCount },
-    { name: 'Won', count: dealsWonCount },
+  const simpleFunnel = [
+    { name: 'Leads', count: funnelLeads, color: 'hsl(174,83%,32%)' },
+    { name: 'Converted', count: funnelConverted, color: 'hsl(160,84%,39%)' },
+    { name: 'Deals', count: funnelDeals, color: 'hsl(38,92%,50%)' },
+    { name: 'Won', count: funnelWon, color: 'hsl(217,91%,60%)' },
   ];
 
-  const funnelConversions = funnelStages.slice(0, -1).map((stage, i) => {
-    const next = funnelStages[i + 1];
+  const funnelConversions = simpleFunnel.slice(0, -1).map((stage, i) => {
+    const next = simpleFunnel[i + 1];
     const rate = stage.count > 0 ? (next.count / stage.count) * 100 : 0;
     return { from: stage.name, to: next.name, rate, drop: 100 - rate };
   });
   const biggestLeakage = funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]);
+  const maxFunnelCount = Math.max(...simpleFunnel.map(s => s.count), 1);
 
   // ========== SECTION 4: Pipeline Health ==========
   const pipelineByStage = useMemo(() => {
@@ -197,19 +192,6 @@ export function ExecutiveSummaryView() {
     return weeks;
   }, [weekStart, end]);
 
-  // ========== SECTION 7: Team Performance ==========
-  const teamData = useMemo(() => {
-    const reps = [...new Set(DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end)).map(d => d.assignedTo))];
-    return reps.map(name => {
-      const deals = weekDeals.filter(d => d.assignedTo === name);
-      const won = deals.filter(d => d.stage === 'Win');
-      const dec = deals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
-      const revenue = won.reduce((s, d) => s + d.negotiatedAmount, 0);
-      const wr = dec.length > 0 ? (won.length / dec.length) * 100 : 0;
-      const avg = won.length > 0 ? revenue / won.length : 0;
-      return { name, dealsClosed: won.length, revenue, winRate: wr, avgDeal: avg };
-    }).sort((a, b) => b.revenue - a.revenue);
-  }, [weekStart, end]);
 
   // ========== SECTION 8: Bottleneck (stuck deals) ==========
   const stuckDeals = useMemo(() => {
@@ -270,7 +252,7 @@ export function ExecutiveSummaryView() {
     return items;
   }, [weekStart, end]);
 
-  const maxFunnelCount = Math.max(...funnelStages.map(s => s.count), 1);
+  
 
   return (
     <div className="space-y-6">
@@ -291,106 +273,57 @@ export function ExecutiveSummaryView() {
               <span className="text-muted-foreground">{kpi.icon}</span>
             </div>
             <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-            <div className="mt-2">
+            <div className="mt-2 space-y-0.5">
               <TrendBadge change={kpi.change} />
+              <p className="text-xs text-muted-foreground">prev: {kpi.prevValue}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* SECTION 2: Revenue Forecast & Target */}
-      <div className="bg-card rounded-lg border p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Target className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Revenue Forecast & Target Tracking</h3>
-        </div>
-        <div className="grid grid-cols-4 gap-6 mb-5">
-          <div>
-            <p className="text-xs text-muted-foreground">Annual Target</p>
-            <p className="text-lg font-bold text-foreground">{formatCurrencyShort(ANNUAL_TARGET)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Revenue Closed</p>
-            <p className="text-lg font-bold text-success">{formatCurrencyShort(revenueClosed)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Weighted Pipeline</p>
-            <p className="text-lg font-bold text-warning">{formatCurrencyShort(weightedPipeline)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Forecasted Revenue</p>
-            <p className="text-lg font-bold text-primary">{formatCurrencyShort(forecastedRevenue)}</p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-medium text-foreground">Target Achievement</span>
-            <span className={`font-bold ${targetAchievement >= 90 ? 'text-success' : targetAchievement >= 70 ? 'text-warning' : 'text-destructive'}`}>
-              {targetAchievement.toFixed(0)}% of target
-            </span>
-          </div>
-          <div className="relative">
-            <Progress value={Math.min(closedPct, 100)} className="h-3" />
-            {/* Weighted pipeline overlay */}
-            <div
-              className="absolute top-0 h-3 rounded-r-full opacity-40"
-              style={{
-                left: `${Math.min(closedPct, 100)}%`,
-                width: `${Math.min((weightedPipeline / ANNUAL_TARGET) * 100, 100 - closedPct)}%`,
-                backgroundColor: 'hsl(var(--warning))',
-              }}
-            />
-          </div>
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Closed</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning opacity-40" /> Weighted Pipeline</span>
-          </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* SECTION 3: Sales Funnel */}
+        {/* SECTION 3: Simplified Sales Funnel */}
         <div className="bg-card rounded-lg border p-5">
           <h3 className="text-sm font-semibold mb-4">Sales Funnel Conversion</h3>
-          <div className="space-y-2">
-            {funnelStages.map((stage, i) => {
+          <div className="space-y-4">
+            {simpleFunnel.map((stage, i) => {
               const widthPct = maxFunnelCount > 0 ? (stage.count / maxFunnelCount) * 100 : 0;
+              const conversion = i > 0 ? funnelConversions[i - 1] : null;
               return (
                 <div key={stage.name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-foreground">{stage.name}</span>
-                    <span className="font-bold">{stage.count}</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-6 flex items-center overflow-hidden">
-                    <div
-                      className="h-full rounded-full flex items-center justify-end pr-2 text-xs font-medium transition-all"
-                      style={{
-                        width: `${Math.max(widthPct, 8)}%`,
-                        backgroundColor: COLORS[i % COLORS.length],
-                        color: 'white',
-                      }}
-                    >
-                      {widthPct > 15 && stage.count}
-                    </div>
-                  </div>
-                  {i < funnelStages.length - 1 && funnelConversions[i] && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2 mt-0.5">
-                      <span>↓ {funnelConversions[i].rate.toFixed(0)}% conversion</span>
-                      {funnelConversions[i] === biggestLeakage && funnelConversions[i].drop > 20 && (
-                        <span className="text-destructive font-medium flex items-center gap-0.5">
-                          <AlertTriangle className="h-3 w-3" /> Biggest drop-off
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground text-sm">{stage.name}</span>
+                      {conversion && (
+                        <span className="text-muted-foreground">
+                          {conversion.rate.toFixed(0)}% from {conversion.from}
                         </span>
                       )}
                     </div>
-                  )}
+                    <span className="font-bold text-foreground text-sm">{stage.count}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-7 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all flex items-center justify-end pr-3"
+                      style={{
+                        width: `${Math.max(widthPct, 8)}%`,
+                        backgroundColor: stage.color,
+                      }}
+                    >
+                      {widthPct > 15 && (
+                        <span className="text-xs font-bold text-white">{stage.count}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
-          {biggestLeakage && biggestLeakage.drop > 20 && (
-            <div className="mt-3 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
+          {biggestLeakage && biggestLeakage.drop > 10 && (
+            <div className="mt-4 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5" />
-              Biggest leakage at {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
+              Biggest drop occurs between {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
             </div>
           )}
         </div>
@@ -523,42 +456,6 @@ export function ExecutiveSummaryView() {
         </ResponsiveContainer>
       </div>
 
-      {/* SECTION 7: Team Performance */}
-      {teamData.length > 0 && (
-        <div className="bg-card rounded-lg border p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Sales Team Performance</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-zebra">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left text-xs font-medium text-muted-foreground pb-2">Salesperson</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Deals Closed</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win Rate</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Avg Deal Size</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teamData.map((rep, i) => (
-                  <tr key={rep.name} className="border-b last:border-0">
-                    <td className="py-2 font-medium flex items-center gap-1.5">
-                      {i === 0 && <span className="text-warning text-xs">★</span>}
-                      {rep.name}
-                    </td>
-                    <td className="py-2 text-center">{rep.dealsClosed}</td>
-                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.revenue)}</td>
-                    <td className="py-2 text-center">{rep.winRate.toFixed(0)}%</td>
-                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.avgDeal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* SECTION 9: Key Insights */}
       <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">
