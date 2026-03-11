@@ -126,7 +126,7 @@ export function ExecutiveSummaryView() {
         <h3 className="text-sm font-semibold text-accent-foreground mb-3">
           Week of {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </h3>
-        <div className="grid grid-cols-7 gap-4">
+        <div className="grid grid-cols-8 gap-4">
           {snapshotItems.map(item => (
             <div key={item.label} className="text-center">
               <p className="text-2xl font-bold text-foreground">{item.value}</p>
