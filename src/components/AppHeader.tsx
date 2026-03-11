@@ -67,8 +67,8 @@ export function AppHeader({ activeView }: { activeView: string }) {
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           {[
             { key: 'week', label: 'Last Week' },
-            { key: 'month', label: 'Last Month' },
-            { key: 'quarter', label: 'Last Quarter' },
+            { key: 'month', label: 'This Month' },
+            { key: 'quarter', label: 'This Quarter' },
             { key: 'all', label: 'All Time' },
           ].map(b => (
             <button
