@@ -401,13 +401,6 @@ export function ExecutiveSummaryView() {
           ) : (
             <p className="text-xs text-muted-foreground mb-4">No active pipeline deals in selected period.</p>
           )}
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-xs text-muted-foreground mb-1">Pipeline Coverage Ratio</p>
-            <p className="text-2xl font-bold text-foreground">{pipelineCoverage.toFixed(1)}x</p>
-            <p className={`text-xs font-medium mt-1 ${pipelineCoverage >= 1.5 ? 'text-success' : pipelineCoverage >= 1.0 ? 'text-warning' : 'text-destructive'}`}>
-              {pipelineCoverage >= 1.5 ? '● Healthy pipeline' : pipelineCoverage >= 1.0 ? '● Adequate — monitor closely' : '● At risk — needs attention'}
-            </p>
-          </div>
 
           {/* Bottleneck Detection inline */}
           {stuckDeals.length > 0 && (
