@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { KPICard } from '@/components/KPICard';
 import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
 import { Users, TrendingUp, Trophy, DollarSign } from 'lucide-react';
@@ -31,6 +31,8 @@ interface RepData {
 }
 
 export function TeamPerformanceView() {
+  const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA, poData: PO_DATA, invoiceData: INVOICE_DATA } = useData();
+
   const repData = useMemo<RepData[]>(() => {
     const reps = [...new Set(ENQUIRY_DATA.map(e => e.assignedTo))];
     return reps.map(name => {
@@ -42,21 +44,19 @@ export function TeamPerformanceView() {
       const winRate = decided.length > 0 ? (won.length / decided.length) * 100 : 0;
       const dealValueWon = won.reduce((s, d) => s + d.negotiatedAmount, 0);
 
-      // Get deal IDs for this rep's won deals, then find POs
       const wonDealIds = won.map(d => d.dealId);
       const activePOs = PO_DATA.filter(p => wonDealIds.includes(p.dealId) && p.status === 'Active').length;
 
-      // Invoices from POs related to this rep
       const repPONumbers = PO_DATA.filter(p => wonDealIds.includes(p.dealId)).map(p => p.poNumber);
       const invoicesRaised = INVOICE_DATA.filter(i => repPONumbers.includes(i.poNumber)).length;
 
       return { name, leads: leads.length, converted, winRate, dealValueWon, activePOs, invoicesRaised };
     }).sort((a, b) => b.leads - a.leads);
-  }, []);
+  }, [ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA]);
 
   const totalReps = repData.length;
   const totalLeads = ENQUIRY_DATA.length;
-  const topRep = repData.reduce((best, r) => r.dealValueWon > best.dealValueWon ? r : best, repData[0]);
+  const topRep = repData.length > 0 ? repData.reduce((best, r) => r.dealValueWon > best.dealValueWon ? r : best, repData[0]) : null;
   const totalWonValue = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
 
   const leadsPerRep = repData.map(r => ({ name: r.name.split(' ')[0], value: r.leads })).sort((a, b) => b.value - a.value);
@@ -99,7 +99,6 @@ export function TeamPerformanceView() {
         </div>
       </div>
 
-      {/* Rep table */}
       <div className="bg-card rounded-lg border overflow-x-auto">
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold">Rep Performance Summary</h3>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { INVOICE_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
@@ -25,14 +25,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function PaymentsView() {
-  const now = new Date('2025-10-07');
+  const { invoiceData: INVOICE_DATA } = useData();
+  const now = new Date('2026-03-11');
 
   const totalBilled = INVOICE_DATA.reduce((s, i) => s + i.amount, 0);
   const totalCollected = INVOICE_DATA.reduce((s, i) => s + i.amountReceived, 0);
   const outstanding = totalBilled - totalCollected;
   const collectionRate = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
 
-  // Monthly cash collection
   const monthlyData = useMemo(() => {
     const months: Record<string, { collected: number; cumulative: number }> = {};
     const sorted = [...INVOICE_DATA].filter(i => i.receivedDate).sort((a, b) => new Date(a.receivedDate!).getTime() - new Date(b.receivedDate!).getTime());
@@ -46,9 +46,8 @@ export function PaymentsView() {
       months[key].cumulative = cumulative;
     });
     return Object.entries(months).map(([month, data]) => ({ month, ...data }));
-  }, []);
+  }, [INVOICE_DATA]);
 
-  // Payment status donut
   const paidAmount = INVOICE_DATA.filter(i => i.status === 'Paid').reduce((s, i) => s + i.amount, 0);
   const pendingAmount = INVOICE_DATA.filter(i => i.status !== 'Paid').reduce((s, i) => s + i.balance, 0);
   const donutData = [
@@ -56,7 +55,6 @@ export function PaymentsView() {
     { name: 'Pending', value: pendingAmount },
   ];
 
-  // Outstanding invoices
   const pendingInvoices = INVOICE_DATA.filter(i => i.status !== 'Paid' && i.balance > 0)
     .map(i => {
       const daysOutstanding = Math.round((now.getTime() - new Date(i.dueDate).getTime()) / 86400000);
@@ -64,7 +62,6 @@ export function PaymentsView() {
     })
     .sort((a, b) => b.daysOutstanding - a.daysOutstanding);
 
-  // Customer summary
   const customerSummary = useMemo(() => {
     const map: Record<string, { billed: number; collected: number; outstanding: number }> = {};
     INVOICE_DATA.forEach(inv => {
@@ -74,7 +71,7 @@ export function PaymentsView() {
       map[inv.customer].outstanding += inv.balance;
     });
     return Object.entries(map).map(([customer, data]) => ({ customer, ...data }));
-  }, []);
+  }, [INVOICE_DATA]);
 
   return (
     <div className="space-y-6">
@@ -119,7 +116,6 @@ export function PaymentsView() {
         </div>
       </div>
 
-      {/* Outstanding payments table */}
       <div className="bg-card rounded-lg border">
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold">Outstanding Payments</h3>
@@ -158,7 +154,6 @@ export function PaymentsView() {
         </div>
       </div>
 
-      {/* Customer summary */}
       <div className="bg-card rounded-lg border">
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold">Per-Customer Summary</h3>

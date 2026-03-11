@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
-import { INVOICE_DATA } from '@/data/constants';
+import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
-import { formatCurrencyShort, formatCurrency, isInRange, getSunday } from '@/lib/formatters';
+import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
 import { Receipt, FileEdit, Send, CheckCircle, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, LabelList } from 'recharts';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -24,15 +23,14 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function InvoicingView() {
+  const { invoiceData: INVOICE_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
-  const end = weekEnd;
 
   const totalInvoiced = INVOICE_DATA.reduce((s, i) => s + i.amount, 0);
   const drafts = INVOICE_DATA.filter(i => i.status === 'Draft');
   const sent = INVOICE_DATA.filter(i => i.status === 'Invoice Sent');
   const paid = INVOICE_DATA.filter(i => i.status === 'Paid');
 
-  // Funnel stages
   const funnelStages = [
     { name: 'Draft', count: drafts.length, value: drafts.reduce((s, i) => s + i.amount, 0), fill: '#94A3B8' },
     { name: 'Pending', count: INVOICE_DATA.filter(i => i.status === 'Pending').length, value: INVOICE_DATA.filter(i => i.status === 'Pending').reduce((s, i) => s + i.amount, 0), fill: '#F59E0B' },
@@ -40,11 +38,9 @@ export function InvoicingView() {
     { name: 'Paid', count: paid.length, value: paid.reduce((s, i) => s + i.amount, 0), fill: '#10B981' },
   ];
 
-  // CFO pending approvals
   const cfoPending = INVOICE_DATA.filter(i => i.cfoApproval === 'Pending');
 
-  // Days to due calculation
-  const now = new Date('2025-10-07');
+  const now = new Date('2026-03-11');
   const sortedInvoices = [...INVOICE_DATA].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   return (
@@ -56,11 +52,10 @@ export function InvoicingView() {
         <KPICard title="Payment Received" value={String(paid.length)} icon={<CheckCircle className="h-5 w-5 text-success" />} />
       </div>
 
-      {/* Invoice funnel */}
       <div className="bg-card rounded-lg border p-5">
         <h3 className="text-sm font-semibold mb-4">Invoice Stage Funnel</h3>
         <div className="flex items-end gap-2 h-40">
-          {funnelStages.map((stage, i) => {
+          {funnelStages.map((stage) => {
             const maxVal = Math.max(...funnelStages.map(s => s.value));
             const heightPct = maxVal > 0 ? (stage.value / maxVal) * 100 : 0;
             return (
@@ -78,7 +73,6 @@ export function InvoicingView() {
         </div>
       </div>
 
-      {/* CFO Approval alerts */}
       {cfoPending.length > 0 && (
         <div className="bg-card rounded-lg border">
           <div className="p-4 border-b flex items-center gap-2">
@@ -110,7 +104,6 @@ export function InvoicingView() {
         </div>
       )}
 
-      {/* Full invoice table */}
       <div className="bg-card rounded-lg border overflow-x-auto">
         <div className="p-4 border-b">
           <h3 className="text-sm font-semibold">All Invoices</h3>

@@ -1,6 +1,7 @@
 import { useWeek } from '@/context/WeekContext';
+import { useData } from '@/context/DataContext';
 import { getMonday, formatDateShort } from '@/lib/formatters';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { CalendarIcon, Clock, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -18,6 +19,7 @@ const VIEW_TITLES: Record<string, string> = {
 
 export function AppHeader({ activeView }: { activeView: string }) {
   const { weekStart, weekEnd, setWeekStart, setWeekEnd, setRangeMode } = useWeek();
+  const { refreshData, isLoading } = useData();
 
   const setPreset = (mode: string) => {
     const now = new Date('2025-10-07');
@@ -63,6 +65,18 @@ export function AppHeader({ activeView }: { activeView: string }) {
       <h2 className="text-lg font-semibold text-foreground">{VIEW_TITLES[activeView]}</h2>
 
       <div className="flex items-center gap-3">
+        {/* Refresh Data button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs gap-1.5"
+          onClick={refreshData}
+          disabled={isLoading}
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+          Refresh Data
+        </Button>
+
         {/* Preset buttons */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           {[
@@ -76,7 +90,7 @@ export function AppHeader({ activeView }: { activeView: string }) {
               onClick={() => setPreset(b.key)}
               className={cn(
                 'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                b.key === 'custom' ? '' : 'text-muted-foreground hover:text-foreground'
+                'text-muted-foreground hover:text-foreground'
               )}
             >
               {b.label}
