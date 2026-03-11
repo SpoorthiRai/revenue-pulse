@@ -291,8 +291,9 @@ export function ExecutiveSummaryView() {
               <span className="text-muted-foreground">{kpi.icon}</span>
             </div>
             <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-            <div className="mt-2">
+            <div className="mt-2 space-y-0.5">
               <TrendBadge change={kpi.change} />
+              <p className="text-xs text-muted-foreground">prev: {kpi.prevValue}</p>
             </div>
           </div>
         ))}
