@@ -473,42 +473,6 @@ export function ExecutiveSummaryView() {
         </ResponsiveContainer>
       </div>
 
-      {/* SECTION 7: Team Performance */}
-      {teamData.length > 0 && (
-        <div className="bg-card rounded-lg border p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Sales Team Performance</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-zebra">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left text-xs font-medium text-muted-foreground pb-2">Salesperson</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Deals Closed</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win Rate</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Avg Deal Size</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teamData.map((rep, i) => (
-                  <tr key={rep.name} className="border-b last:border-0">
-                    <td className="py-2 font-medium flex items-center gap-1.5">
-                      {i === 0 && <span className="text-warning text-xs">★</span>}
-                      {rep.name}
-                    </td>
-                    <td className="py-2 text-center">{rep.dealsClosed}</td>
-                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.revenue)}</td>
-                    <td className="py-2 text-center">{rep.winRate.toFixed(0)}%</td>
-                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.avgDeal)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* SECTION 9: Key Insights */}
       <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">
