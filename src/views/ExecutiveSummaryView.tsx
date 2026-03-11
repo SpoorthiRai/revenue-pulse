@@ -455,8 +455,10 @@ export function ExecutiveSummaryView() {
             <Tooltip content={<CustomTooltip />} />
             <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
             <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="dealsWon" name="Deals Won" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="converted" name="Converted" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="deals" name="Deals" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="won" name="Won" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(262,83%,58%)" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
