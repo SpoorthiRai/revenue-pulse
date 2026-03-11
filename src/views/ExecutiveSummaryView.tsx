@@ -68,6 +68,7 @@ export function ExecutiveSummaryView() {
 
   // Snapshot card data
   const snapshotItems = [
+    { label: 'Total Enquiry', value: weekLeads.length },
     { label: 'Total Deals', value: weekDeals.length },
     { label: 'Deals Won', value: wonDeals.length },
     { label: 'Deals Lost', value: lostDeals.length },
