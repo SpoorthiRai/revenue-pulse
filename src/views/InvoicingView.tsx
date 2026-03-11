@@ -24,8 +24,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function InvoicingView() {
-  const { weekStart, rangeMode } = useWeek();
-  const end = rangeMode === 'week' ? getSunday(weekStart) : rangeMode === 'month' ? new Date(weekStart.getTime() + 30 * 86400000) : rangeMode === 'quarter' ? new Date(weekStart.getTime() + 90 * 86400000) : new Date('2026-12-31');
+  const { weekStart, weekEnd } = useWeek();
+  const end = weekEnd;
 
   const totalInvoiced = INVOICE_DATA.reduce((s, i) => s + i.amount, 0);
   const drafts = INVOICE_DATA.filter(i => i.status === 'Draft');
