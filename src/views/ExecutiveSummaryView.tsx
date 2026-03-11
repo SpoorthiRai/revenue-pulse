@@ -68,6 +68,7 @@ export function ExecutiveSummaryView() {
 
   // Snapshot card data
   const snapshotItems = [
+    { label: 'Total Enquiry', value: weekLeads.length },
     { label: 'Total Deals', value: weekDeals.length },
     { label: 'Deals Won', value: wonDeals.length },
     { label: 'Deals Lost', value: lostDeals.length },
@@ -97,21 +98,26 @@ export function ExecutiveSummaryView() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [weekStart, end]);
 
-  // Trend over time (last 8 weeks from end date) — only leads & deals
+  // Trend over time — based on selected date range, split into weekly buckets
   const weeklyActivity = useMemo(() => {
     const weeks: { week: string; leads: number; deals: number }[] = [];
-    for (let i = 7; i >= 0; i--) {
-      const mon = getMonday(new Date(end.getTime() - i * 7 * 86400000));
+    const startMon = getMonday(weekStart);
+    const endDate = end.getTime();
+    let current = startMon.getTime();
+    while (current <= endDate) {
+      const mon = new Date(current);
       const sun = getSunday(mon);
+      const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
       weeks.push({
         week: label,
-        leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, sun)).length,
-        deals: DEAL_DATA.filter(d => isInRange(d.closeDate, mon, sun)).length,
+        leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd)).length,
+        deals: DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd)).length,
       });
+      current += 7 * 86400000;
     }
     return weeks;
-  }, [end]);
+  }, [weekStart, end]);
 
   return (
     <div className="space-y-6">
@@ -120,7 +126,7 @@ export function ExecutiveSummaryView() {
         <h3 className="text-sm font-semibold text-accent-foreground mb-3">
           Week of {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </h3>
-        <div className="grid grid-cols-7 gap-4">
+        <div className="grid grid-cols-8 gap-4">
           {snapshotItems.map(item => (
             <div key={item.label} className="text-center">
               <p className="text-2xl font-bold text-foreground">{item.value}</p>
