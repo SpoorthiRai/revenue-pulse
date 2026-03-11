@@ -64,7 +64,7 @@ export function ExecutiveSummaryView() {
   const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
   const negotiationDeals = weekDeals.filter(d => d.stage === 'Negotiation');
   const commercialProposalDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
-  const closedDeals = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+  const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
 
   // Snapshot card data
   const snapshotItems = [
