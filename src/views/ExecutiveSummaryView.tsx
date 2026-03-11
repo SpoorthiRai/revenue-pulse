@@ -109,16 +109,12 @@ export function ExecutiveSummaryView() {
     { title: 'Lead Conversion', value: `${leadConversionRate.toFixed(0)}%`, prevValue: `${prevLeadConversionRate.toFixed(0)}%`, change: percentChange(leadConversionRate, prevLeadConversionRate), icon: <Activity className="h-4 w-4" /> },
   ];
 
-  // ========== SECTION 2: Revenue Forecast ==========
-  // Use all-time data for annual target tracking
+  // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000; // ₹5 Cr
-  const allWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
-  const revenueClosed = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
-  const activeNegotiationDeals = DEAL_DATA.filter(d => d.stage === 'Negotiation');
-  const weightedPipeline = activeNegotiationDeals.reduce((s, d) => s + d.expectedAmount * 0.6, 0);
+  const revenueClosed = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  const weightedPipeline = DEAL_DATA.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
-  const closedPct = (revenueClosed / ANNUAL_TARGET) * 100;
 
   // ========== SECTION 3: Simplified Funnel ==========
   const funnelLeads = weekLeads.length;
