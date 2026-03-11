@@ -3,7 +3,7 @@ import { ENQUIRY_DATA, DEAL_DATA, PO_DATA } from '@/data/constants';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
-import { TrendingUp, CheckCircle } from 'lucide-react';
+import { TrendingUp, CheckCircle, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
