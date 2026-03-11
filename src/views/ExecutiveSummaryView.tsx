@@ -171,7 +171,7 @@ export function ExecutiveSummaryView() {
 
   // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
-    const weeks: { week: string; leads: number; dealsWon: number; revenue: number }[] = [];
+    const weeks: { week: string; leads: number; converted: number; deals: number; won: number; revenue: number }[] = [];
     const startMon = getMonday(weekStart);
     const endDate = end.getTime();
     let current = startMon.getTime();
@@ -180,11 +180,16 @@ export function ExecutiveSummaryView() {
       const sun = getSunday(mon);
       const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
-      const bucketWon = DEAL_DATA.filter(d => d.stage === 'Win' && isInRange(d.closeDate, mon, bucketEnd));
+      const bucketLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd));
+      const bucketConverted = bucketLeads.filter(e => e.status === 'Converted');
+      const bucketDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd));
+      const bucketWon = bucketDeals.filter(d => d.stage === 'Win');
       weeks.push({
         week: label,
-        leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd)).length,
-        dealsWon: bucketWon.length,
+        leads: bucketLeads.length,
+        converted: bucketConverted.length,
+        deals: bucketDeals.length,
+        won: bucketWon.length,
         revenue: bucketWon.reduce((s, d) => s + d.negotiatedAmount, 0),
       });
       current += 7 * 86400000;
