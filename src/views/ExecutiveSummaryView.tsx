@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
 import { useWeek } from '@/context/WeekContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
-import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, Users, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
