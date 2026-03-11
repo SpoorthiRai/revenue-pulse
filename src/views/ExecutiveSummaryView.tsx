@@ -1,16 +1,15 @@
 import { useMemo } from 'react';
-import { ENQUIRY_DATA, DEAL_DATA, PO_DATA } from '@/data/constants';
+import { ENQUIRY_DATA, DEAL_DATA, PO_DATA, INVOICE_DATA } from '@/data/constants';
 import { useWeek } from '@/context/WeekContext';
-import { KPICard } from '@/components/KPICard';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
-import { TrendingUp, CheckCircle, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, Users, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend,
-  FunnelChart, Funnel, LabelList
+  LineChart, Line, CartesianGrid, Legend, Cell
 } from 'recharts';
 
-const COLORS = ['#0D9488', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899'];
+const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)', 'hsl(217,91%,60%)', 'hsl(262,83%,58%)'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -27,80 +26,157 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: number; direction: string }; suffix?: string }) {
+  const isUp = change.direction === 'up';
+  const isFlat = change.direction === 'flat';
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium ${isFlat ? 'text-muted-foreground' : isUp ? 'text-success' : 'text-destructive'}`}>
+      {isUp && <TrendingUp className="h-3 w-3" />}
+      {!isUp && !isFlat && <TrendingDown className="h-3 w-3" />}
+      {isFlat && <Minus className="h-3 w-3" />}
+      {change.value.toFixed(1)}% {suffix}
+    </span>
+  );
+}
+
 export function ExecutiveSummaryView() {
   const { weekStart, weekEnd } = useWeek();
   const end = weekEnd;
 
   // Previous period
-  const prevStart = new Date(weekStart);
   const diff = end.getTime() - weekStart.getTime();
-  prevStart.setTime(weekStart.getTime() - diff);
-  const prevEnd = new Date(weekStart);
-  prevEnd.setTime(prevEnd.getTime() - 1);
+  const prevStart = new Date(weekStart.getTime() - diff);
+  const prevEnd = new Date(weekStart.getTime() - 1);
 
+  // Filtered data
   const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
   const prevLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
   const weekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
   const prevDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
-  const weekPOs = PO_DATA.filter(p => isInRange(p.startDate, weekStart, end));
 
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
-  const lostCancelled = weekDeals.filter(d => d.stage === 'Lost' || d.stage === 'Cancel');
 
-  // KPI values
-  const pipelineValue = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
-  const prevPipelineValue = prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  // ========== SECTION 1: KPIs ==========
+  const revenueWon = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const prevRevenueWon = prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+
+  const pipelineValue = weekDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
+    .reduce((s, d) => s + d.expectedAmount, 0)
+    + wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const prevPipelineValue = prevDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
+    .reduce((s, d) => s + d.expectedAmount, 0)
+    + prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
 
   const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
   const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
 
-  // WoW change rate (total deal activity)
-  const wowChange = percentChange(weekDeals.length, prevDeals.length);
+  const avgDealSize = wonDeals.length > 0 ? revenueWon / wonDeals.length : 0;
+  const prevAvgDealSize = prevWonDeals.length > 0 ? prevRevenueWon / prevWonDeals.length : 0;
 
-  const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
-  const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
-  const negotiationDeals = weekDeals.filter(d => d.stage === 'Negotiation');
-  const commercialProposalDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
-  const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
-
-  // Snapshot card data
-  const snapshotItems = [
-    { label: 'Total Enquiry', value: weekLeads.length },
-    { label: 'Total Deals', value: weekDeals.length },
-    { label: 'Deals Won', value: wonDeals.length },
-    { label: 'Deals Lost', value: lostDeals.length },
-    { label: 'Deals Cancel', value: cancelDeals.length },
-    { label: 'Deals in Commercial Proposal', value: commercialProposalDeals.length },
-    { label: 'Deals Negotiation', value: negotiationDeals.length },
-    { label: 'Deals Closed', value: closedDeals.length },
-  ];
-
-  // Funnel data — filtered by date range, no Invoiced/Paid
-  const filteredLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const filteredConverted = filteredLeads.filter(e => e.status === 'Converted').length;
-  const filteredDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
-  const filteredWon = filteredDeals.filter(d => d.stage === 'Win').length;
-  const funnelData = [
-    { name: 'Leads', value: filteredLeads.length, fill: '#0D9488' },
-    { name: 'Converted', value: filteredConverted, fill: '#10B981' },
-    { name: 'Deals', value: filteredDeals.length, fill: '#3B82F6' },
-    { name: 'Won', value: filteredWon, fill: '#8B5CF6' },
-  ];
-
-  // Leads by pillar donut
-  const pillarCounts = useMemo(() => {
-    const filtered = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-    const map: Record<string, number> = {};
-    filtered.forEach(e => { map[e.pillar] = (map[e.pillar] || 0) + 1; });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  // Sales cycle: avg days from lead creation to deal close for won deals
+  const salesCycleDays = useMemo(() => {
+    const days = wonDeals.map(d => {
+      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
+      if (!lead) return null;
+      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+    }).filter(Boolean) as number[];
+    return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
   }, [weekStart, end]);
 
-  // Trend over time — based on selected date range, split into weekly buckets
+  const prevSalesCycleDays = useMemo(() => {
+    const days = prevWonDeals.map(d => {
+      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
+      if (!lead) return null;
+      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+    }).filter(Boolean) as number[];
+    return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
+  }, [prevStart, prevEnd]);
+
+  const convertedLeads = weekLeads.filter(e => e.status === 'Converted').length;
+  const prevConvertedLeads = prevLeads.filter(e => e.status === 'Converted').length;
+  const leadConversionRate = weekLeads.length > 0 ? (convertedLeads / weekLeads.length) * 100 : 0;
+  const prevLeadConversionRate = prevLeads.length > 0 ? (prevConvertedLeads / prevLeads.length) * 100 : 0;
+
+  const kpis = [
+    { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
+    { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), change: percentChange(pipelineValue, prevPipelineValue), icon: <BarChart3 className="h-4 w-4" /> },
+    { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
+    { title: 'Avg Deal Size', value: formatCurrencyShort(avgDealSize), change: percentChange(avgDealSize, prevAvgDealSize), icon: <Target className="h-4 w-4" /> },
+    { title: 'Sales Cycle', value: `${salesCycleDays} days`, change: percentChange(salesCycleDays, prevSalesCycleDays), positive: false, icon: <Clock className="h-4 w-4" /> },
+    { title: 'Lead Conversion', value: `${leadConversionRate.toFixed(0)}%`, change: percentChange(leadConversionRate, prevLeadConversionRate), icon: <Activity className="h-4 w-4" /> },
+  ];
+
+  // ========== SECTION 2: Revenue Forecast ==========
+  // Use all-time data for annual target tracking
+  const ANNUAL_TARGET = 50000000; // ₹5 Cr
+  const allWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
+  const revenueClosed = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const activeNegotiationDeals = DEAL_DATA.filter(d => d.stage === 'Negotiation');
+  const weightedPipeline = activeNegotiationDeals.reduce((s, d) => s + d.expectedAmount * 0.6, 0);
+  const forecastedRevenue = revenueClosed + weightedPipeline;
+  const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
+  const closedPct = (revenueClosed / ANNUAL_TARGET) * 100;
+
+  // ========== SECTION 3: Funnel ==========
+  const totalLeads = weekLeads.length;
+  const qualifiedLeads = weekLeads.filter(e => e.status !== 'Cancelled').length;
+  const proposalsSent = weekDeals.length; // all deals that reached deal stage
+  const negotiationCount = weekDeals.filter(d => ['Negotiation', 'Win', 'Lost'].includes(d.stage)).length;
+  const dealsWonCount = wonDeals.length;
+
+  const funnelStages = [
+    { name: 'Leads', count: totalLeads },
+    { name: 'Qualified', count: qualifiedLeads },
+    { name: 'Proposals', count: proposalsSent },
+    { name: 'Negotiation', count: negotiationCount },
+    { name: 'Won', count: dealsWonCount },
+  ];
+
+  const funnelConversions = funnelStages.slice(0, -1).map((stage, i) => {
+    const next = funnelStages[i + 1];
+    const rate = stage.count > 0 ? (next.count / stage.count) * 100 : 0;
+    return { from: stage.name, to: next.name, rate, drop: 100 - rate };
+  });
+  const biggestLeakage = funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]);
+
+  // ========== SECTION 4: Pipeline Health ==========
+  const pipelineByStage = useMemo(() => {
+    const stages = ['Negotiation', 'Commercial Proposal', 'Closed'];
+    return stages.map(stage => {
+      const deals = weekDeals.filter(d => d.stage === stage);
+      return { stage, deals: deals.length, value: deals.reduce((s, d) => s + d.expectedAmount, 0) };
+    }).filter(s => s.deals > 0);
+  }, [weekStart, end]);
+
+  const totalPipelineActive = DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
+    .reduce((s, d) => s + d.expectedAmount, 0);
+  const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
+
+  // ========== SECTION 5: Service Pillar ==========
+  const servicePillarData = useMemo(() => {
+    const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
+    return pillars.map(pillar => {
+      const leads = weekLeads.filter(e => e.pillar === pillar).length;
+      const deals = wonDeals.filter(d => d.pillar === pillar);
+      const revenue = deals.reduce((s, d) => s + d.negotiatedAmount, 0);
+      const allPillarDeals = weekDeals.filter(d => d.pillar === pillar);
+      const pillarDecided = allPillarDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+      const wr = pillarDecided.length > 0 ? (deals.length / pillarDecided.length) * 100 : 0;
+      return { pillar, leads, dealsWon: deals.length, revenue, winRate: wr };
+    }).filter(s => s.leads > 0 || s.dealsWon > 0).sort((a, b) => b.revenue - a.revenue);
+  }, [weekStart, end]);
+
+  const revenueByPillar = servicePillarData.filter(s => s.revenue > 0).map(s => ({
+    name: s.pillar,
+    value: s.revenue,
+  }));
+
+  // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
-    const weeks: { week: string; leads: number; deals: number }[] = [];
+    const weeks: { week: string; leads: number; dealsWon: number; revenue: number }[] = [];
     const startMon = getMonday(weekStart);
     const endDate = end.getTime();
     let current = startMon.getTime();
@@ -109,87 +185,395 @@ export function ExecutiveSummaryView() {
       const sun = getSunday(mon);
       const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
+      const bucketWon = DEAL_DATA.filter(d => d.stage === 'Win' && isInRange(d.closeDate, mon, bucketEnd));
       weeks.push({
         week: label,
         leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd)).length,
-        deals: DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd)).length,
+        dealsWon: bucketWon.length,
+        revenue: bucketWon.reduce((s, d) => s + d.negotiatedAmount, 0),
       });
       current += 7 * 86400000;
     }
     return weeks;
   }, [weekStart, end]);
 
+  // ========== SECTION 7: Team Performance ==========
+  const teamData = useMemo(() => {
+    const reps = [...new Set(DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end)).map(d => d.assignedTo))];
+    return reps.map(name => {
+      const deals = weekDeals.filter(d => d.assignedTo === name);
+      const won = deals.filter(d => d.stage === 'Win');
+      const dec = deals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+      const revenue = won.reduce((s, d) => s + d.negotiatedAmount, 0);
+      const wr = dec.length > 0 ? (won.length / dec.length) * 100 : 0;
+      const avg = won.length > 0 ? revenue / won.length : 0;
+      return { name, dealsClosed: won.length, revenue, winRate: wr, avgDeal: avg };
+    }).sort((a, b) => b.revenue - a.revenue);
+  }, [weekStart, end]);
+
+  // ========== SECTION 8: Bottleneck (stuck deals) ==========
+  const stuckDeals = useMemo(() => {
+    const today = new Date('2025-10-07');
+    return DEAL_DATA.filter(d => {
+      if (['Win', 'Lost', 'Cancel'].includes(d.stage)) return false;
+      const daysSince = (today.getTime() - new Date(d.closeDate).getTime()) / 86400000;
+      return daysSince < 0; // deals with future close dates are "in progress"
+    }).length === 0
+      ? DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
+          const today2 = new Date('2025-10-07');
+          const daysInStage = Math.abs(Math.round((today2.getTime() - new Date(d.closeDate).getTime()) / 86400000));
+          return { ...d, daysInStage };
+        })
+      : DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
+          const today2 = new Date('2025-10-07');
+          const daysInStage = Math.abs(Math.round((today2.getTime() - new Date(d.closeDate).getTime()) / 86400000));
+          return { ...d, daysInStage };
+        });
+  }, []);
+
+  const stuckByStage = useMemo(() => {
+    const map: Record<string, number> = {};
+    stuckDeals.forEach(d => { map[d.stage] = (map[d.stage] || 0) + 1; });
+    return Object.entries(map).map(([stage, count]) => ({ stage, count }));
+  }, [stuckDeals]);
+
+  // ========== SECTION 9: Insights ==========
+  const insights = useMemo(() => {
+    const items: string[] = [];
+    const revChange = percentChange(revenueWon, prevRevenueWon);
+    if (revChange.direction === 'up') items.push(`Revenue won increased by ${revChange.value.toFixed(0)}% compared to previous period.`);
+    else if (revChange.direction === 'down') items.push(`Revenue won decreased by ${revChange.value.toFixed(0)}% compared to previous period — needs attention.`);
+
+    const lcChange = percentChange(leadConversionRate, prevLeadConversionRate);
+    if (lcChange.direction === 'up') items.push(`Lead conversion rate improved by ${lcChange.value.toFixed(0)}% this period.`);
+
+    if (servicePillarData.length > 0) {
+      const topByLeads = [...servicePillarData].sort((a, b) => b.leads - a.leads)[0];
+      const topByRev = servicePillarData[0];
+      if (topByLeads.pillar !== topByRev.pillar && topByLeads.leads > 0) {
+        items.push(`${topByLeads.pillar} generates the most leads but ${topByRev.pillar} drives the highest revenue.`);
+      }
+    }
+
+    items.push(`Pipeline coverage is currently ${pipelineCoverage.toFixed(1)}x — ${pipelineCoverage >= 1.5 ? 'healthy' : pipelineCoverage >= 1.0 ? 'adequate' : 'at risk'}.`);
+
+    if (biggestLeakage && biggestLeakage.drop > 20) {
+      items.push(`Biggest funnel leakage at ${biggestLeakage.from} → ${biggestLeakage.to} stage (${biggestLeakage.drop.toFixed(0)}% drop-off).`);
+    }
+
+    if (targetAchievement < 100) {
+      items.push(`Forecasted revenue is ${targetAchievement.toFixed(0)}% of annual target — ${targetAchievement >= 90 ? 'on track' : 'action needed'}.`);
+    } else {
+      items.push(`Forecasted revenue exceeds annual target at ${targetAchievement.toFixed(0)}%.`);
+    }
+
+    return items;
+  }, [weekStart, end]);
+
+  const maxFunnelCount = Math.max(...funnelStages.map(s => s.count), 1);
+
   return (
     <div className="space-y-6">
-      {/* Snapshot card */}
-      <div className="bg-accent border-l-4 border-primary rounded-lg p-5">
-        <h3 className="text-sm font-semibold text-accent-foreground mb-3">
-          Week of {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </h3>
-        <div className="grid grid-cols-8 gap-4">
-          {snapshotItems.map(item => (
-            <div key={item.label} className="text-center">
-              <p className="text-2xl font-bold text-foreground">{item.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{item.label}</p>
+      {/* Period comparison label */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="bg-muted px-2 py-1 rounded">
+          {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <span>compared to previous equal period</span>
+      </div>
+
+      {/* SECTION 1: Executive KPI Cards */}
+      <div className="grid grid-cols-6 gap-3">
+        {kpis.map(kpi => (
+          <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+              <span className="text-muted-foreground">{kpi.icon}</span>
             </div>
-          ))}
-        </div>
+            <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+            <div className="mt-2">
+              <TrendBadge change={kpi.change} />
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} previousValue={formatCurrencyShort(prevPipelineValue)} change={percentChange(pipelineValue, prevPipelineValue)} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
-        <KPICard title="Win Rate" value={`${winRate.toFixed(0)}%`} previousValue={`${prevWinRate.toFixed(0)}%`} change={percentChange(winRate, prevWinRate)} icon={<CheckCircle className="h-5 w-5 text-primary" />} />
-        <KPICard title="WoW Change Rate" value={`${wowChange.value.toFixed(1)}%`} previousValue={`${prevDeals.length} deals`} change={wowChange} icon={<Activity className="h-5 w-5 text-primary" />} />
-      </div>
-
-      {/* Funnel chart with conversion rates */}
+      {/* SECTION 2: Revenue Forecast & Target */}
       <div className="bg-card rounded-lg border p-5">
-        <h3 className="text-sm font-semibold mb-4">Revenue Funnel</h3>
-        <ResponsiveContainer width="100%" height={220}>
-          <FunnelChart>
-            <Tooltip content={<CustomTooltip />} />
-            <Funnel dataKey="value" data={funnelData} isAnimationActive>
-              <LabelList position="right" fill="hsl(215,28%,17%)" fontSize={12} formatter={(v: number) => v} />
-              <LabelList position="center" fill="#fff" fontSize={11} dataKey="name" />
-            </Funnel>
-          </FunnelChart>
-        </ResponsiveContainer>
-        <div className="flex justify-center gap-8 mt-3 text-xs text-muted-foreground">
-          <span>Lead → Converted: <strong className="text-foreground">{filteredLeads.length > 0 ? ((filteredConverted / filteredLeads.length) * 100).toFixed(1) : 0}%</strong></span>
-          <span>Deals → Won: <strong className="text-foreground">{filteredDeals.length > 0 ? ((filteredWon / filteredDeals.length) * 100).toFixed(1) : 0}%</strong></span>
+        <div className="flex items-center gap-2 mb-4">
+          <Target className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Revenue Forecast & Target Tracking</h3>
+        </div>
+        <div className="grid grid-cols-4 gap-6 mb-5">
+          <div>
+            <p className="text-xs text-muted-foreground">Annual Target</p>
+            <p className="text-lg font-bold text-foreground">{formatCurrencyShort(ANNUAL_TARGET)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Revenue Closed</p>
+            <p className="text-lg font-bold text-success">{formatCurrencyShort(revenueClosed)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Weighted Pipeline</p>
+            <p className="text-lg font-bold text-warning">{formatCurrencyShort(weightedPipeline)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Forecasted Revenue</p>
+            <p className="text-lg font-bold text-primary">{formatCurrencyShort(forecastedRevenue)}</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-foreground">Target Achievement</span>
+            <span className={`font-bold ${targetAchievement >= 90 ? 'text-success' : targetAchievement >= 70 ? 'text-warning' : 'text-destructive'}`}>
+              {targetAchievement.toFixed(0)}% of target
+            </span>
+          </div>
+          <div className="relative">
+            <Progress value={Math.min(closedPct, 100)} className="h-3" />
+            {/* Weighted pipeline overlay */}
+            <div
+              className="absolute top-0 h-3 rounded-r-full opacity-40"
+              style={{
+                left: `${Math.min(closedPct, 100)}%`,
+                width: `${Math.min((weightedPipeline / ANNUAL_TARGET) * 100, 100 - closedPct)}%`,
+                backgroundColor: 'hsl(var(--warning))',
+              }}
+            />
+          </div>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary" /> Closed</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-warning opacity-40" /> Weighted Pipeline</span>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* Donut */}
+        {/* SECTION 3: Sales Funnel */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Leads by Service Pillar</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie data={pillarCounts} cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={3} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                {pillarCounts.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
+          <h3 className="text-sm font-semibold mb-4">Sales Funnel Conversion</h3>
+          <div className="space-y-2">
+            {funnelStages.map((stage, i) => {
+              const widthPct = maxFunnelCount > 0 ? (stage.count / maxFunnelCount) * 100 : 0;
+              return (
+                <div key={stage.name}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-medium text-foreground">{stage.name}</span>
+                    <span className="font-bold">{stage.count}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-6 flex items-center overflow-hidden">
+                    <div
+                      className="h-full rounded-full flex items-center justify-end pr-2 text-xs font-medium transition-all"
+                      style={{
+                        width: `${Math.max(widthPct, 8)}%`,
+                        backgroundColor: COLORS[i % COLORS.length],
+                        color: 'white',
+                      }}
+                    >
+                      {widthPct > 15 && stage.count}
+                    </div>
+                  </div>
+                  {i < funnelStages.length - 1 && funnelConversions[i] && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2 mt-0.5">
+                      <span>↓ {funnelConversions[i].rate.toFixed(0)}% conversion</span>
+                      {funnelConversions[i] === biggestLeakage && funnelConversions[i].drop > 20 && (
+                        <span className="text-destructive font-medium flex items-center gap-0.5">
+                          <AlertTriangle className="h-3 w-3" /> Biggest drop-off
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {biggestLeakage && biggestLeakage.drop > 20 && (
+            <div className="mt-3 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Biggest leakage at {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
+            </div>
+          )}
         </div>
 
-        {/* Trend over time */}
+        {/* SECTION 4: Pipeline Health */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Trend over the Time</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={weeklyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} label={{ value: 'Week', position: 'insideBottom', offset: -2, fontSize: 11 }} />
-              <YAxis fontSize={11} label={{ value: 'Count', angle: -90, position: 'insideLeft', fontSize: 11 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="leads" name="Leads" stroke="#0D9488" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="deals" name="Deals" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <h3 className="text-sm font-semibold mb-4">Pipeline Health</h3>
+          {pipelineByStage.length > 0 ? (
+            <table className="w-full text-sm mb-4">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left text-xs font-medium text-muted-foreground pb-2">Stage</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Deals</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pipelineByStage.map(s => (
+                  <tr key={s.stage} className="border-b last:border-0">
+                    <td className="py-2 font-medium">{s.stage}</td>
+                    <td className="py-2 text-center">{s.deals}</td>
+                    <td className="py-2 text-right font-mono">{formatCurrencyShort(s.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-xs text-muted-foreground mb-4">No active pipeline deals in selected period.</p>
+          )}
+          <div className="bg-muted/50 rounded-lg p-4">
+            <p className="text-xs text-muted-foreground mb-1">Pipeline Coverage Ratio</p>
+            <p className="text-2xl font-bold text-foreground">{pipelineCoverage.toFixed(1)}x</p>
+            <p className={`text-xs font-medium mt-1 ${pipelineCoverage >= 1.5 ? 'text-success' : pipelineCoverage >= 1.0 ? 'text-warning' : 'text-destructive'}`}>
+              {pipelineCoverage >= 1.5 ? '● Healthy pipeline' : pipelineCoverage >= 1.0 ? '● Adequate — monitor closely' : '● At risk — needs attention'}
+            </p>
+          </div>
+
+          {/* Bottleneck Detection inline */}
+          {stuckDeals.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                Deals Requiring Attention
+              </div>
+              <div className="space-y-1.5">
+                {stuckByStage.map(s => (
+                  <div key={s.stage} className="flex items-center justify-between text-xs bg-warning/10 rounded px-3 py-1.5">
+                    <span className="font-medium">{s.stage}</span>
+                    <span className="font-bold text-warning">{s.count} deal{s.count > 1 ? 's' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* SECTION 5: Service Pillar Performance */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-card rounded-lg border p-5">
+          <h3 className="text-sm font-semibold mb-4">Service Pillar Performance</h3>
+          {servicePillarData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-zebra">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left text-xs font-medium text-muted-foreground pb-2">Service</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Leads</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Won</th>
+                    <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
+                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {servicePillarData.map(s => (
+                    <tr key={s.pillar} className="border-b last:border-0">
+                      <td className="py-2 font-medium">{s.pillar}</td>
+                      <td className="py-2 text-center">{s.leads}</td>
+                      <td className="py-2 text-center">{s.dealsWon}</td>
+                      <td className="py-2 text-right font-mono">{formatCurrencyShort(s.revenue)}</td>
+                      <td className="py-2 text-center">{s.winRate.toFixed(0)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No service data for selected period.</p>
+          )}
+        </div>
+
+        {/* Revenue by Pillar bar chart */}
+        <div className="bg-card rounded-lg border p-5">
+          <h3 className="text-sm font-semibold mb-4">Revenue Contribution by Service</h3>
+          {revenueByPillar.length > 0 ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={revenueByPillar} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+                <XAxis type="number" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
+                <YAxis type="category" dataKey="name" width={90} fontSize={11} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" name="Revenue" radius={[0, 4, 4, 0]}>
+                  {revenueByPillar.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-xs text-muted-foreground">No revenue data for selected period.</p>
+          )}
+        </div>
+      </div>
+
+      {/* SECTION 6: Trend Over Time */}
+      <div className="bg-card rounded-lg border p-5">
+        <h3 className="text-sm font-semibold mb-4">Revenue & Deal Trend Over Time</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={weeklyActivity}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+            <XAxis dataKey="week" fontSize={11} />
+            <YAxis yAxisId="left" fontSize={11} />
+            <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+            <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="dealsWon" name="Deals Won" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* SECTION 7: Team Performance */}
+      {teamData.length > 0 && (
+        <div className="bg-card rounded-lg border p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Sales Team Performance</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm table-zebra">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left text-xs font-medium text-muted-foreground pb-2">Salesperson</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Deals Closed</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win Rate</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Avg Deal Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamData.map((rep, i) => (
+                  <tr key={rep.name} className="border-b last:border-0">
+                    <td className="py-2 font-medium flex items-center gap-1.5">
+                      {i === 0 && <span className="text-warning text-xs">★</span>}
+                      {rep.name}
+                    </td>
+                    <td className="py-2 text-center">{rep.dealsClosed}</td>
+                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.revenue)}</td>
+                    <td className="py-2 text-center">{rep.winRate.toFixed(0)}%</td>
+                    <td className="py-2 text-right font-mono">{formatCurrencyShort(rep.avgDeal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 9: Key Insights */}
+      <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Lightbulb className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Key Insights</h3>
+        </div>
+        <ul className="space-y-2">
+          {insights.map((insight, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+              <span className="text-primary mt-0.5">•</span>
+              {insight}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
