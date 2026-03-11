@@ -171,7 +171,7 @@ export function ExecutiveSummaryView() {
 
   // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
-    const weeks: { week: string; leads: number; dealsWon: number; revenue: number }[] = [];
+    const weeks: { week: string; leads: number; converted: number; deals: number; won: number; revenue: number }[] = [];
     const startMon = getMonday(weekStart);
     const endDate = end.getTime();
     let current = startMon.getTime();
@@ -180,11 +180,16 @@ export function ExecutiveSummaryView() {
       const sun = getSunday(mon);
       const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
-      const bucketWon = DEAL_DATA.filter(d => d.stage === 'Win' && isInRange(d.closeDate, mon, bucketEnd));
+      const bucketLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd));
+      const bucketConverted = bucketLeads.filter(e => e.status === 'Converted');
+      const bucketDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd));
+      const bucketWon = bucketDeals.filter(d => d.stage === 'Win');
       weeks.push({
         week: label,
-        leads: ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd)).length,
-        dealsWon: bucketWon.length,
+        leads: bucketLeads.length,
+        converted: bucketConverted.length,
+        deals: bucketDeals.length,
+        won: bucketWon.length,
         revenue: bucketWon.reduce((s, d) => s + d.negotiatedAmount, 0),
       });
       current += 7 * 86400000;
@@ -450,8 +455,10 @@ export function ExecutiveSummaryView() {
             <Tooltip content={<CustomTooltip />} />
             <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
             <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="dealsWon" name="Deals Won" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="converted" name="Converted" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="deals" name="Deals" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="won" name="Won" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(262,83%,58%)" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
