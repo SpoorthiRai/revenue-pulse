@@ -1,6 +1,6 @@
-import { LayoutDashboard, TrendingUp, FileText, Receipt, Wallet, Users } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, FileText, Users } from 'lucide-react';
 
-export type ViewId = 'executive' | 'pipeline' | 'contracts' | 'invoicing' | 'payments' | 'team';
+export type ViewId = 'executive' | 'pipeline' | 'contracts' | 'team';
 
 interface SidebarProps {
   activeView: ViewId;
@@ -12,8 +12,6 @@ const NAV_ITEMS: { id: ViewId; label: string; icon: React.ElementType }[] = [
   { id: 'executive', label: 'Executive Summary', icon: LayoutDashboard },
   { id: 'pipeline', label: 'Pipeline', icon: TrendingUp },
   { id: 'contracts', label: 'PO & Contracts', icon: FileText },
-  { id: 'invoicing', label: 'Invoicing', icon: Receipt },
-  { id: 'payments', label: 'Payments', icon: Wallet },
   { id: 'team', label: 'Team Performance', icon: Users },
 ];
 
