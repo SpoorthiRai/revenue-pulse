@@ -272,45 +272,100 @@ export function ExecutiveSummaryView() {
         ))}
       </div>
 
-      {/* Operational Snapshot Cards */}
+      {/* Operational Pipeline Strip */}
       {(() => {
+        const convertedCount = weekLeads.filter(e => e.status === 'Converted').length;
+        const prevConverted = prevLeads.filter(e => e.status === 'Converted').length;
         const lostDeals = weekDeals.filter(d => d.stage === 'Lost');
         const prevLostDeals = prevDeals.filter(d => d.stage === 'Lost');
         const cancelDeals = weekDeals.filter(d => d.stage === 'Cancel');
         const prevCancelDeals = prevDeals.filter(d => d.stage === 'Cancel');
-        const cpDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
-        const prevCpDeals = prevDeals.filter(d => d.stage === 'Commercial Proposal');
         const negDeals = weekDeals.filter(d => d.stage === 'Negotiation');
         const prevNegDeals = prevDeals.filter(d => d.stage === 'Negotiation');
-        const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
-        const prevClosedDeals = prevDeals.filter(d => d.stage === 'Closed');
 
-        const snapCards = [
-          { title: 'Total Leads', current: weekLeads.length, prev: prevLeads.length },
-          { title: 'Total Deals', current: weekDeals.length, prev: prevDeals.length },
-          { title: 'Deals Won', current: wonDeals.length, prev: prevWonDeals.length },
-          { title: 'Deals Lost', current: lostDeals.length, prev: prevLostDeals.length, positive: false },
-          { title: 'Deals Cancel', current: cancelDeals.length, prev: prevCancelDeals.length, positive: false },
-          { title: 'Deals Commercial Proposal', current: cpDeals.length, prev: prevCpDeals.length },
-          { title: 'Deals Negotiation', current: negDeals.length, prev: prevNegDeals.length },
-          { title: 'Deals Closed', current: closedDeals.length, prev: prevClosedDeals.length },
+        // "positive" means UP is good. For Lost/Cancelled, DOWN is good so positive=false
+        const stages = [
+          { name: 'Total Leads', current: weekLeads.length, prev: prevLeads.length, positive: true, color: 'hsl(174,83%,32%)' },
+          { name: 'Converted', current: convertedCount, prev: prevConverted, positive: true, color: 'hsl(160,84%,39%)' },
+          { name: 'Total Deals', current: weekDeals.length, prev: prevDeals.length, positive: true, color: 'hsl(38,92%,50%)' },
+          { name: 'Won', current: wonDeals.length, prev: prevWonDeals.length, positive: true, color: 'hsl(217,91%,60%)' },
+          { name: 'Lost', current: lostDeals.length, prev: prevLostDeals.length, positive: false, color: 'hsl(0,84%,60%)' },
+          { name: 'Cancelled', current: cancelDeals.length, prev: prevCancelDeals.length, positive: false, color: 'hsl(25,95%,53%)' },
+          { name: 'Negotiation', current: negDeals.length, prev: prevNegDeals.length, positive: true, color: 'hsl(262,83%,58%)' },
         ];
 
+        // Compute conversion rates between adjacent stages
+        const convRates = stages.slice(0, -1).map((s, i) => {
+          const next = stages[i + 1];
+          if (s.current === 0) return null;
+          return ((next.current / s.current) * 100).toFixed(0);
+        });
+
+        // Generate insight line
+        const biggestRisk = stages.reduce((worst, s) => {
+          const ch = percentChange(s.current, s.prev);
+          const isBad = s.positive ? ch.direction === 'down' : ch.direction === 'up';
+          if (isBad && ch.value > (worst?.changeVal || 0)) {
+            return { name: s.name, changeVal: ch.value, direction: ch.direction, positive: s.positive };
+          }
+          return worst;
+        }, null as { name: string; changeVal: number; direction: string; positive: boolean } | null);
+
+        const insightLine = biggestRisk
+          ? `${biggestRisk.name} ${biggestRisk.direction === 'down' ? '↓' : '↑'} ${biggestRisk.changeVal.toFixed(0)}% vs prior period → Requires immediate attention to maintain targets.`
+          : 'All pipeline stages are stable or improving vs prior period.';
+
         return (
-          <div className="grid grid-cols-4 gap-3">
-            {snapCards.map(card => {
-              const change = percentChange(card.current, card.prev);
-              return (
-                <div key={card.title} className="bg-card rounded-lg border p-3 hover:shadow-md transition-shadow">
-                  <p className="text-xs text-muted-foreground font-medium mb-1">{card.title}</p>
-                  <p className="text-lg font-bold text-foreground">{card.current}</p>
-                  <div className="mt-1.5 space-y-0.5">
-                    <TrendBadge change={change} />
-                    <p className="text-xs text-muted-foreground">{card.prev}</p>
+          <div className="bg-card rounded-lg border p-4">
+            <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Deal Pipeline Flow</h3>
+            <div className="flex items-stretch">
+              {stages.map((stage, i) => {
+                const change = percentChange(stage.current, stage.prev);
+                const absDelta = stage.current - stage.prev;
+                const isGood = change.direction === 'flat' ? true
+                  : stage.positive ? change.direction === 'up' : change.direction === 'down';
+                const deltaColor = change.direction === 'flat' ? 'text-muted-foreground' : isGood ? 'text-success' : 'text-destructive';
+
+                return (
+                  <div key={stage.name} className="flex items-stretch flex-1 min-w-0">
+                    {/* Arrow + conversion rate between stages */}
+                    {i > 0 && (
+                      <div className="flex flex-col items-center justify-center px-1 shrink-0">
+                        <span className="text-muted-foreground text-lg leading-none">→</span>
+                        {convRates[i - 1] && (
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
+                            {convRates[i - 1]}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Stage block */}
+                    <div
+                      className="flex-1 rounded-md px-3 py-2.5 min-w-0 border"
+                      style={{ borderLeftColor: stage.color, borderLeftWidth: '3px' }}
+                    >
+                      <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-wide">{stage.name}</p>
+                      <p className="text-lg font-bold text-foreground leading-tight">{stage.current}</p>
+                      <div className="mt-1 space-y-0">
+                        <p className="text-[10px] text-muted-foreground">was {stage.prev}</p>
+                        <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
+                          {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
+                          {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
+                          {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
+                          <span>{absDelta >= 0 ? '+' : ''}{absDelta}</span>
+                          <span>({change.value.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            {/* Insight line */}
+            <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2">
+              <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+              <span>{insightLine}</span>
+            </div>
           </div>
         );
       })()}
