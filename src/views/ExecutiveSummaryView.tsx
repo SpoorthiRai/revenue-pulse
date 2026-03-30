@@ -291,9 +291,9 @@ export function ExecutiveSummaryView() {
         const stages = [
           { name: 'Total Leads', current: weekLeads.length, prev: prevLeads.length, positive: true, color: 'hsl(174,83%,32%)' },
           { name: 'Converted', current: convertedCount, prev: prevConverted, positive: true, color: 'hsl(160,84%,39%)' },
+          { name: 'Total Deals', current: weekDeals.length, prev: prevDeals.length, positive: true, color: 'hsl(38,92%,50%)' },
           { name: 'Proposal', current: proposalDeals.length, prev: prevProposalDeals.length, positive: true, color: 'hsl(280,70%,55%)' },
           { name: 'Negotiation', current: negDeals.length, prev: prevNegDeals.length, positive: true, color: 'hsl(262,83%,58%)' },
-          { name: 'Total Deals', current: weekDeals.length, prev: prevDeals.length, positive: true, color: 'hsl(38,92%,50%)' },
           { name: 'Won', current: wonDeals.length, prev: prevWonDeals.length, positive: true, color: 'hsl(217,91%,60%)' },
           { name: 'Lost', current: lostDeals.length, prev: prevLostDeals.length, positive: false, color: 'hsl(0,84%,60%)' },
           { name: 'Cancelled', current: cancelDeals.length, prev: prevCancelDeals.length, positive: false, color: 'hsl(25,95%,53%)' },
