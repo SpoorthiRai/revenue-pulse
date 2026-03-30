@@ -282,16 +282,22 @@ export function ExecutiveSummaryView() {
         const prevCancelDeals = prevDeals.filter(d => d.stage === 'Cancel');
         const negDeals = weekDeals.filter(d => d.stage === 'Negotiation');
         const prevNegDeals = prevDeals.filter(d => d.stage === 'Negotiation');
+        const proposalDeals = weekDeals.filter(d => d.stage === 'Commercial Proposal');
+        const prevProposalDeals = prevDeals.filter(d => d.stage === 'Commercial Proposal');
+        const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
+        const prevClosedDeals = prevDeals.filter(d => d.stage === 'Closed');
 
-        // "positive" means UP is good. For Lost/Cancelled, DOWN is good so positive=false
+        // Full ordered pipeline: Total Leads → Converted → Proposal → Negotiation → Total Deals → Won → Lost → Cancelled → Closed
         const stages = [
           { name: 'Total Leads', current: weekLeads.length, prev: prevLeads.length, positive: true, color: 'hsl(174,83%,32%)' },
           { name: 'Converted', current: convertedCount, prev: prevConverted, positive: true, color: 'hsl(160,84%,39%)' },
+          { name: 'Proposal', current: proposalDeals.length, prev: prevProposalDeals.length, positive: true, color: 'hsl(280,70%,55%)' },
+          { name: 'Negotiation', current: negDeals.length, prev: prevNegDeals.length, positive: true, color: 'hsl(262,83%,58%)' },
           { name: 'Total Deals', current: weekDeals.length, prev: prevDeals.length, positive: true, color: 'hsl(38,92%,50%)' },
           { name: 'Won', current: wonDeals.length, prev: prevWonDeals.length, positive: true, color: 'hsl(217,91%,60%)' },
           { name: 'Lost', current: lostDeals.length, prev: prevLostDeals.length, positive: false, color: 'hsl(0,84%,60%)' },
           { name: 'Cancelled', current: cancelDeals.length, prev: prevCancelDeals.length, positive: false, color: 'hsl(25,95%,53%)' },
-          { name: 'Negotiation', current: negDeals.length, prev: prevNegDeals.length, positive: true, color: 'hsl(262,83%,58%)' },
+          { name: 'Closed', current: closedDeals.length, prev: prevClosedDeals.length, positive: true, color: 'hsl(200,70%,50%)' },
         ];
 
         // Compute conversion rates between adjacent stages
@@ -320,6 +326,7 @@ export function ExecutiveSummaryView() {
             <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Deal Pipeline Flow</h3>
             <div className="flex items-stretch">
               {stages.map((stage, i) => {
+                const isInactive = stage.current === 0 && stage.prev === 0;
                 const change = percentChange(stage.current, stage.prev);
                 const absDelta = stage.current - stage.prev;
                 const isGood = change.direction === 'flat' ? true
@@ -331,7 +338,7 @@ export function ExecutiveSummaryView() {
                     {/* Arrow + conversion rate between stages */}
                     {i > 0 && (
                       <div className="flex flex-col items-center justify-center px-1 shrink-0">
-                        <span className="text-muted-foreground text-lg leading-none">→</span>
+                        <span className={`text-lg leading-none ${isInactive && stages[i-1].current === 0 && stages[i-1].prev === 0 ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>→</span>
                         {convRates[i - 1] && (
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
                             {convRates[i - 1]}%
@@ -341,21 +348,33 @@ export function ExecutiveSummaryView() {
                     )}
                     {/* Stage block */}
                     <div
-                      className="flex-1 rounded-md px-3 py-2.5 min-w-0 border"
-                      style={{ borderLeftColor: stage.color, borderLeftWidth: '3px' }}
+                      className={`flex-1 rounded-md px-3 py-2.5 min-w-0 border ${isInactive ? 'opacity-40 bg-muted/30' : ''}`}
+                      style={{ borderLeftColor: isInactive ? 'hsl(0,0%,70%)' : stage.color, borderLeftWidth: '3px' }}
                     >
                       <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-wide">{stage.name}</p>
-                      <p className="text-lg font-bold text-foreground leading-tight">{stage.current}</p>
-                      <div className="mt-1 space-y-0">
-                        <p className="text-[10px] text-muted-foreground">was {stage.prev}</p>
-                        <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
-                          {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
-                          {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
-                          {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
-                          <span>{absDelta >= 0 ? '+' : ''}{absDelta}</span>
-                          <span>({change.value.toFixed(1)}%)</span>
-                        </div>
-                      </div>
+                      {isInactive ? (
+                        <>
+                          <p className="text-lg font-bold text-muted-foreground leading-tight">—</p>
+                          <div className="mt-1">
+                            <p className="text-[10px] text-muted-foreground">was 0</p>
+                            <p className="text-[10px] text-muted-foreground">— (0.0%)</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-lg font-bold text-foreground leading-tight">{stage.current}</p>
+                          <div className="mt-1 space-y-0">
+                            <p className="text-[10px] text-muted-foreground">was {stage.prev}</p>
+                            <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
+                              {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
+                              {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
+                              {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
+                              <span>{absDelta >= 0 ? '+' : ''}{absDelta}</span>
+                              <span>({change.value.toFixed(1)}%)</span>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
