@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTr
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend, Cell
+  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart
 } from 'recharts';
 
 const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)', 'hsl(217,91%,60%)', 'hsl(262,83%,58%)'];
