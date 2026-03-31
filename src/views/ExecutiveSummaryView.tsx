@@ -212,38 +212,53 @@ export function ExecutiveSummaryView() {
     return Object.entries(map).map(([stage, count]) => ({ stage, count }));
   }, [stuckDeals]);
 
-  // ========== SECTION 9: Insights ==========
-  const insights = useMemo(() => {
-    const items: string[] = [];
+  // ========== SECTION 9: Insights (split into positive / attention) ==========
+  const { positiveInsights, attentionInsights } = useMemo(() => {
+    const positive: string[] = [];
+    const attention: string[] = [];
+
     const revChange = percentChange(revenueWon, prevRevenueWon);
-    if (revChange.direction === 'up') items.push(`Revenue won increased by ${revChange.value.toFixed(0)}% compared to previous period.`);
-    else if (revChange.direction === 'down') items.push(`Revenue won decreased by ${revChange.value.toFixed(0)}% compared to previous period — needs attention.`);
+    if (revChange.direction === 'up') positive.push(`Revenue won increased by ${revChange.value.toFixed(0)}% compared to previous period.`);
+    else if (revChange.direction === 'down') attention.push(`Revenue won decreased by ${revChange.value.toFixed(0)}% → Review deal pipeline and accelerate closures.`);
 
     const lcChange = percentChange(leadConversionRate, prevLeadConversionRate);
-    if (lcChange.direction === 'up') items.push(`Lead conversion rate improved by ${lcChange.value.toFixed(0)}% this period.`);
+    if (lcChange.direction === 'up') positive.push(`Lead conversion rate improved by ${lcChange.value.toFixed(0)}% this period.`);
+    else if (lcChange.direction === 'down') attention.push(`Lead conversion rate dropped by ${lcChange.value.toFixed(0)}% → Improve lead qualification process.`);
+
+    const leadChange = percentChange(weekLeads.length, prevLeads.length);
+    if (leadChange.direction === 'up') positive.push(`Lead volume grew by ${leadChange.value.toFixed(0)}% vs prior period.`);
+    else if (leadChange.direction === 'down') attention.push(`Lead volume dropped ${leadChange.value.toFixed(0)}% → Increase marketing and outreach efforts.`);
+
+    const winRateChange = percentChange(winRate, prevWinRate);
+    if (winRateChange.direction === 'up') positive.push(`Win rate improved to ${winRate.toFixed(0)}% (up ${winRateChange.value.toFixed(0)}%).`);
+    else if (winRateChange.direction === 'down') attention.push(`Win rate declined to ${winRate.toFixed(0)}% → Analyse lost deals for patterns.`);
+
+    const lostChange = percentChange(weekDeals.filter(d => d.stage === 'Lost').length, prevDeals.filter(d => d.stage === 'Lost').length);
+    if (lostChange.direction === 'down') positive.push(`Deals lost decreased by ${lostChange.value.toFixed(0)}% — fewer losses this period.`);
+    else if (lostChange.direction === 'up') attention.push(`Deals lost increased by ${lostChange.value.toFixed(0)}% → Investigate loss reasons and improve proposals.`);
 
     if (servicePillarData.length > 0) {
-      const topByLeads = [...servicePillarData].sort((a, b) => b.leads - a.leads)[0];
       const topByRev = servicePillarData[0];
-      if (topByLeads.pillar !== topByRev.pillar && topByLeads.leads > 0) {
-        items.push(`${topByLeads.pillar} generates the most leads but ${topByRev.pillar} drives the highest revenue.`);
-      }
+      if (topByRev.revenue > 0) positive.push(`${topByRev.pillar} is the top revenue contributor this period.`);
     }
 
-    items.push(`Pipeline coverage is currently ${pipelineCoverage.toFixed(1)}x — ${pipelineCoverage >= 1.5 ? 'healthy' : pipelineCoverage >= 1.0 ? 'adequate' : 'at risk'}.`);
+    if (pipelineCoverage >= 1.5) positive.push(`Pipeline coverage is ${pipelineCoverage.toFixed(1)}x — healthy.`);
+    else if (pipelineCoverage < 1.0) attention.push(`Pipeline coverage at ${pipelineCoverage.toFixed(1)}x — at risk → Accelerate prospecting to build pipeline.`);
+    else attention.push(`Pipeline coverage at ${pipelineCoverage.toFixed(1)}x — adequate but thin → Add more qualified opportunities.`);
 
     if (biggestLeakage && biggestLeakage.drop > 20) {
-      items.push(`Biggest funnel leakage at ${biggestLeakage.from} → ${biggestLeakage.to} stage (${biggestLeakage.drop.toFixed(0)}% drop-off).`);
+      attention.push(`Biggest funnel drop-off at ${biggestLeakage.from} → ${biggestLeakage.to} (${biggestLeakage.drop.toFixed(0)}%) → Focus on stage conversion improvement.`);
     }
 
-    if (targetAchievement < 100) {
-      items.push(`Forecasted revenue is ${targetAchievement.toFixed(0)}% of annual target — ${targetAchievement >= 90 ? 'on track' : 'action needed'}.`);
-    } else {
-      items.push(`Forecasted revenue exceeds annual target at ${targetAchievement.toFixed(0)}%.`);
-    }
+    if (targetAchievement >= 100) positive.push(`Forecasted revenue exceeds annual target at ${targetAchievement.toFixed(0)}%.`);
+    else if (targetAchievement < 90) attention.push(`Forecast at ${targetAchievement.toFixed(0)}% of annual target → Action needed to close gap.`);
 
-    return items;
-  }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement]);
+    const scChange = percentChange(salesCycleDays, prevSalesCycleDays);
+    if (scChange.direction === 'down' && salesCycleDays > 0) positive.push(`Sales cycle shortened to ${salesCycleDays} days (improved ${scChange.value.toFixed(0)}%).`);
+    else if (scChange.direction === 'up' && salesCycleDays > 0) attention.push(`Sales cycle lengthened to ${salesCycleDays} days → Streamline approval workflows.`);
+
+    return { positiveInsights: positive.slice(0, 4), attentionInsights: attention.slice(0, 4) };
+  }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, weekLeads, prevLeads, winRate, prevWinRate, weekDeals, prevDeals, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement, salesCycleDays, prevSalesCycleDays]);
 
   return (
     <div className="space-y-6">
