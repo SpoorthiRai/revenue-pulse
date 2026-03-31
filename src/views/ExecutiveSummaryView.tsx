@@ -672,21 +672,7 @@ export function ExecutiveSummaryView() {
         </ResponsiveContainer>
       </div>
 
-      {/* SECTION 9: Key Insights */}
-      <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Lightbulb className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Key Insights</h3>
-        </div>
-        <ul className="space-y-2">
-          {insights.map((insight, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-              <span className="text-primary mt-0.5">•</span>
-              {insight}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Key Insights section moved to top */}
     </div>
   );
 }
