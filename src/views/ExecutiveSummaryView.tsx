@@ -614,23 +614,61 @@ export function ExecutiveSummaryView() {
         </div>
       </div>
 
-      {/* SECTION 6: Trend Over Time */}
+      {/* SECTION 6: Trend Over Time with Toggle */}
       <div className="bg-card rounded-lg border p-5">
-        <h3 className="text-sm font-semibold mb-4">Revenue & Deal Trend Over Time</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">{trendTitle}</h3>
+          <div className="flex rounded-lg border overflow-hidden">
+            {([
+              { key: 'leads-deals', label: 'Leads & Deals' },
+              { key: 'deals-revenue', label: 'Deals & Revenue' },
+              { key: 'win-loss', label: 'Win vs Loss' },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setTrendMode(opt.key)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${trendMode === opt.key ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={weeklyActivity}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-            <XAxis dataKey="week" fontSize={11} />
-            <YAxis yAxisId="left" fontSize={11} />
-            <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-            <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="converted" name="Converted" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="deals" name="Deals" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="won" name="Won" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(262,83%,58%)" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
+          {trendMode === 'win-loss' ? (
+            <ComposedChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis fontSize={11} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="won" name="Won" fill="hsl(160,84%,39%)" fillOpacity={0.15} stroke="none" />
+              <Area type="monotone" dataKey="lost" name="Lost (area)" fill="hsl(0,84%,60%)" fillOpacity={0.1} stroke="none" />
+              <Line type="monotone" dataKey="won" name="Won" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="lost" name="Lost" stroke="hsl(0,84%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
+          ) : (
+            <LineChart data={weeklyActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis yAxisId="left" fontSize={11} />
+              {trendMode === 'deals-revenue' && <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />}
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              {trendMode === 'leads-deals' && (
+                <>
+                  <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="deals" name="Total Deals" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+                </>
+              )}
+              {trendMode === 'deals-revenue' && (
+                <>
+                  <Line yAxisId="left" type="monotone" dataKey="deals" name="Total Deals" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
+                </>
+              )}
+            </LineChart>
+          )}
         </ResponsiveContainer>
       </div>
 
