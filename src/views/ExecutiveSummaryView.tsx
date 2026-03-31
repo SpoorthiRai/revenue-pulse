@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTr
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend, Cell
+  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart
 } from 'recharts';
 
 const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)', 'hsl(217,91%,60%)', 'hsl(262,83%,58%)'];
@@ -212,38 +212,72 @@ export function ExecutiveSummaryView() {
     return Object.entries(map).map(([stage, count]) => ({ stage, count }));
   }, [stuckDeals]);
 
-  // ========== SECTION 9: Insights ==========
-  const insights = useMemo(() => {
-    const items: string[] = [];
+  // ========== SECTION 9: Insights (split into positive / attention) ==========
+  const { positiveInsights, attentionInsights } = useMemo(() => {
+    const positive: string[] = [];
+    const attention: string[] = [];
+
     const revChange = percentChange(revenueWon, prevRevenueWon);
-    if (revChange.direction === 'up') items.push(`Revenue won increased by ${revChange.value.toFixed(0)}% compared to previous period.`);
-    else if (revChange.direction === 'down') items.push(`Revenue won decreased by ${revChange.value.toFixed(0)}% compared to previous period — needs attention.`);
+    if (revChange.direction === 'up') positive.push(`Revenue won increased by ${revChange.value.toFixed(0)}% compared to previous period.`);
+    else if (revChange.direction === 'down') attention.push(`Revenue won decreased by ${revChange.value.toFixed(0)}% → Review deal pipeline and accelerate closures.`);
 
     const lcChange = percentChange(leadConversionRate, prevLeadConversionRate);
-    if (lcChange.direction === 'up') items.push(`Lead conversion rate improved by ${lcChange.value.toFixed(0)}% this period.`);
+    if (lcChange.direction === 'up') positive.push(`Lead conversion rate improved by ${lcChange.value.toFixed(0)}% this period.`);
+    else if (lcChange.direction === 'down') attention.push(`Lead conversion rate dropped by ${lcChange.value.toFixed(0)}% → Improve lead qualification process.`);
+
+    const leadChange = percentChange(weekLeads.length, prevLeads.length);
+    if (leadChange.direction === 'up') positive.push(`Lead volume grew by ${leadChange.value.toFixed(0)}% vs prior period.`);
+    else if (leadChange.direction === 'down') attention.push(`Lead volume dropped ${leadChange.value.toFixed(0)}% → Increase marketing and outreach efforts.`);
+
+    const winRateChange = percentChange(winRate, prevWinRate);
+    if (winRateChange.direction === 'up') positive.push(`Win rate improved to ${winRate.toFixed(0)}% (up ${winRateChange.value.toFixed(0)}%).`);
+    else if (winRateChange.direction === 'down') attention.push(`Win rate declined to ${winRate.toFixed(0)}% → Analyse lost deals for patterns.`);
+
+    const lostChange = percentChange(weekDeals.filter(d => d.stage === 'Lost').length, prevDeals.filter(d => d.stage === 'Lost').length);
+    if (lostChange.direction === 'down') positive.push(`Deals lost decreased by ${lostChange.value.toFixed(0)}% — fewer losses this period.`);
+    else if (lostChange.direction === 'up') attention.push(`Deals lost increased by ${lostChange.value.toFixed(0)}% → Investigate loss reasons and improve proposals.`);
 
     if (servicePillarData.length > 0) {
-      const topByLeads = [...servicePillarData].sort((a, b) => b.leads - a.leads)[0];
       const topByRev = servicePillarData[0];
-      if (topByLeads.pillar !== topByRev.pillar && topByLeads.leads > 0) {
-        items.push(`${topByLeads.pillar} generates the most leads but ${topByRev.pillar} drives the highest revenue.`);
-      }
+      if (topByRev.revenue > 0) positive.push(`${topByRev.pillar} is the top revenue contributor this period.`);
     }
 
-    items.push(`Pipeline coverage is currently ${pipelineCoverage.toFixed(1)}x — ${pipelineCoverage >= 1.5 ? 'healthy' : pipelineCoverage >= 1.0 ? 'adequate' : 'at risk'}.`);
+    if (pipelineCoverage >= 1.5) positive.push(`Pipeline coverage is ${pipelineCoverage.toFixed(1)}x — healthy.`);
+    else if (pipelineCoverage < 1.0) attention.push(`Pipeline coverage at ${pipelineCoverage.toFixed(1)}x — at risk → Accelerate prospecting to build pipeline.`);
+    else attention.push(`Pipeline coverage at ${pipelineCoverage.toFixed(1)}x — adequate but thin → Add more qualified opportunities.`);
 
     if (biggestLeakage && biggestLeakage.drop > 20) {
-      items.push(`Biggest funnel leakage at ${biggestLeakage.from} → ${biggestLeakage.to} stage (${biggestLeakage.drop.toFixed(0)}% drop-off).`);
+      attention.push(`Biggest funnel drop-off at ${biggestLeakage.from} → ${biggestLeakage.to} (${biggestLeakage.drop.toFixed(0)}%) → Focus on stage conversion improvement.`);
     }
 
-    if (targetAchievement < 100) {
-      items.push(`Forecasted revenue is ${targetAchievement.toFixed(0)}% of annual target — ${targetAchievement >= 90 ? 'on track' : 'action needed'}.`);
-    } else {
-      items.push(`Forecasted revenue exceeds annual target at ${targetAchievement.toFixed(0)}%.`);
-    }
+    if (targetAchievement >= 100) positive.push(`Forecasted revenue exceeds annual target at ${targetAchievement.toFixed(0)}%.`);
+    else if (targetAchievement < 90) attention.push(`Forecast at ${targetAchievement.toFixed(0)}% of annual target → Action needed to close gap.`);
 
-    return items;
-  }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement]);
+    const scChange = percentChange(salesCycleDays, prevSalesCycleDays);
+    if (scChange.direction === 'down' && salesCycleDays > 0) positive.push(`Sales cycle shortened to ${salesCycleDays} days (improved ${scChange.value.toFixed(0)}%).`);
+    else if (scChange.direction === 'up' && salesCycleDays > 0) attention.push(`Sales cycle lengthened to ${salesCycleDays} days → Streamline approval workflows.`);
+
+    return { positiveInsights: positive.slice(0, 4), attentionInsights: attention.slice(0, 4) };
+  }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, weekLeads, prevLeads, winRate, prevWinRate, weekDeals, prevDeals, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement, salesCycleDays, prevSalesCycleDays]);
+
+  // ========== Trend toggle state ==========
+  const [trendMode, setTrendMode] = useState<'leads-deals' | 'deals-revenue' | 'win-loss'>('leads-deals');
+  const trendTitle = trendMode === 'leads-deals' ? 'Lead & Deal Volume Over Time' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue Over Time' : 'Wins vs Losses Over Time';
+
+  // Add won/lost columns to weeklyActivity for win-loss mode
+  const trendData = useMemo(() => {
+    return weeklyActivity.map(w => ({
+      ...w,
+      lost: DEAL_DATA.filter(d => {
+        const mon = new Date(weekStart);
+        const parts = w.week.split('/');
+        const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        const wkSun = new Date(wkMon.getTime() + 6 * 86400000);
+        wkSun.setHours(23, 59, 59, 999);
+        return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
+      }).length,
+    }));
+  }, [weeklyActivity, DEAL_DATA, weekStart]);
 
   return (
     <div className="space-y-6">
@@ -253,6 +287,50 @@ export function ExecutiveSummaryView() {
           {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
         <span>compared to previous equal period</span>
+      </div>
+
+      {/* KEY INSIGHTS — Moved to top, split into 2 columns */}
+      <div className="bg-card rounded-lg border">
+        <div className="grid grid-cols-2 divide-x">
+          {/* Effective Areas */}
+          <div className="p-5 border-l-4 border-l-success rounded-l-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-success" />
+              <h3 className="text-sm font-semibold text-foreground">Effective Areas</h3>
+            </div>
+            {positiveInsights.length > 0 ? (
+              <ul className="space-y-2">
+                {positiveInsights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="text-success mt-0.5 shrink-0">•</span>
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No highlights this period</p>
+            )}
+          </div>
+          {/* Needs Attention */}
+          <div className="p-5 border-l-4 border-l-destructive">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
+              <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
+            </div>
+            {attentionInsights.length > 0 ? (
+              <ul className="space-y-2">
+                {attentionInsights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="text-destructive mt-0.5 shrink-0">•</span>
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-success italic">All clear this period</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* SECTION 1: Executive KPI Cards */}
@@ -536,41 +614,65 @@ export function ExecutiveSummaryView() {
         </div>
       </div>
 
-      {/* SECTION 6: Trend Over Time */}
+      {/* SECTION 6: Trend Over Time with Toggle */}
       <div className="bg-card rounded-lg border p-5">
-        <h3 className="text-sm font-semibold mb-4">Revenue & Deal Trend Over Time</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">{trendTitle}</h3>
+          <div className="flex rounded-lg border overflow-hidden">
+            {([
+              { key: 'leads-deals', label: 'Leads & Deals' },
+              { key: 'deals-revenue', label: 'Deals & Revenue' },
+              { key: 'win-loss', label: 'Win vs Loss' },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                onClick={() => setTrendMode(opt.key)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${trendMode === opt.key ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={weeklyActivity}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-            <XAxis dataKey="week" fontSize={11} />
-            <YAxis yAxisId="left" fontSize={11} />
-            <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-            <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="converted" name="Converted" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="deals" name="Deals" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="left" type="monotone" dataKey="won" name="Won" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
-            <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(262,83%,58%)" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
+          {trendMode === 'win-loss' ? (
+            <ComposedChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis fontSize={11} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="won" name="Won" fill="hsl(160,84%,39%)" fillOpacity={0.15} stroke="none" />
+              <Area type="monotone" dataKey="lost" name="Lost (area)" fill="hsl(0,84%,60%)" fillOpacity={0.1} stroke="none" />
+              <Line type="monotone" dataKey="won" name="Won" stroke="hsl(160,84%,39%)" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="lost" name="Lost" stroke="hsl(0,84%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
+          ) : (
+            <LineChart data={weeklyActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis yAxisId="left" fontSize={11} />
+              {trendMode === 'deals-revenue' && <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />}
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              {trendMode === 'leads-deals' && (
+                <>
+                  <Line yAxisId="left" type="monotone" dataKey="leads" name="Leads" stroke="hsl(174,83%,32%)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="left" type="monotone" dataKey="deals" name="Total Deals" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+                </>
+              )}
+              {trendMode === 'deals-revenue' && (
+                <>
+                  <Line yAxisId="left" type="monotone" dataKey="deals" name="Total Deals" stroke="hsl(217,91%,60%)" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="revenue" name="Revenue" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
+                </>
+              )}
+            </LineChart>
+          )}
         </ResponsiveContainer>
       </div>
 
-      {/* SECTION 9: Key Insights */}
-      <div className="bg-accent/50 rounded-lg border border-primary/20 p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Lightbulb className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Key Insights</h3>
-        </div>
-        <ul className="space-y-2">
-          {insights.map((insight, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-              <span className="text-primary mt-0.5">•</span>
-              {insight}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Key Insights section moved to top */}
     </div>
   );
 }
