@@ -260,6 +260,25 @@ export function ExecutiveSummaryView() {
     return { positiveInsights: positive.slice(0, 4), attentionInsights: attention.slice(0, 4) };
   }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, weekLeads, prevLeads, winRate, prevWinRate, weekDeals, prevDeals, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement, salesCycleDays, prevSalesCycleDays]);
 
+  // ========== Trend toggle state ==========
+  const [trendMode, setTrendMode] = useState<'leads-deals' | 'deals-revenue' | 'win-loss'>('leads-deals');
+  const trendTitle = trendMode === 'leads-deals' ? 'Lead & Deal Volume Over Time' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue Over Time' : 'Wins vs Losses Over Time';
+
+  // Add won/lost columns to weeklyActivity for win-loss mode
+  const trendData = useMemo(() => {
+    return weeklyActivity.map(w => ({
+      ...w,
+      lost: DEAL_DATA.filter(d => {
+        const mon = new Date(weekStart);
+        const parts = w.week.split('/');
+        const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        const wkSun = new Date(wkMon.getTime() + 6 * 86400000);
+        wkSun.setHours(23, 59, 59, 999);
+        return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
+      }).length,
+    }));
+  }, [weeklyActivity, DEAL_DATA, weekStart]);
+
   return (
     <div className="space-y-6">
       {/* Period comparison label */}
@@ -268,6 +287,50 @@ export function ExecutiveSummaryView() {
           {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
         <span>compared to previous equal period</span>
+      </div>
+
+      {/* KEY INSIGHTS — Moved to top, split into 2 columns */}
+      <div className="bg-card rounded-lg border">
+        <div className="grid grid-cols-2 divide-x">
+          {/* Effective Areas */}
+          <div className="p-5 border-l-4 border-l-success rounded-l-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-success" />
+              <h3 className="text-sm font-semibold text-foreground">Effective Areas</h3>
+            </div>
+            {positiveInsights.length > 0 ? (
+              <ul className="space-y-2">
+                {positiveInsights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="text-success mt-0.5 shrink-0">•</span>
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No highlights this period</p>
+            )}
+          </div>
+          {/* Needs Attention */}
+          <div className="p-5 border-l-4 border-l-destructive">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
+              <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
+            </div>
+            {attentionInsights.length > 0 ? (
+              <ul className="space-y-2">
+                {attentionInsights.map((insight, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                    <span className="text-destructive mt-0.5 shrink-0">•</span>
+                    {insight}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-success italic">All clear this period</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* SECTION 1: Executive KPI Cards */}
