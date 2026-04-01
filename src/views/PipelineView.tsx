@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useData } from '@/context/DataContext';
+import { usePillarFilter } from '@/context/PillarFilterContext';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
