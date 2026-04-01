@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { WeekProvider, useWeek } from '@/context/WeekContext';
 import { DataProvider, useData } from '@/context/DataContext';
+import { PillarFilterProvider, usePillarFilter } from '@/context/PillarFilterContext';
 import { AppSidebar, ViewId } from '@/components/AppSidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { ExecutiveSummaryView } from '@/views/ExecutiveSummaryView';
@@ -8,6 +9,7 @@ import { PipelineView } from '@/views/PipelineView';
 import { ContractsView } from '@/views/ContractsView';
 import { TeamPerformanceView } from '@/views/TeamPerformanceView';
 import { formatDateShort } from '@/lib/formatters';
+import { X } from 'lucide-react';
 
 function DashboardContent() {
   const [activeView, setActiveView] = useState<ViewId>('executive');
