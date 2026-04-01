@@ -44,6 +44,7 @@ function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: nu
 export function ExecutiveSummaryView() {
   const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
+  const { selectedPillar, togglePillar } = usePillarFilter();
   const end = weekEnd;
 
   // Previous period
@@ -51,11 +52,15 @@ export function ExecutiveSummaryView() {
   const prevStart = new Date(weekStart.getTime() - diff);
   const prevEnd = new Date(weekStart.getTime() - 1);
 
+  // Apply pillar filter to raw data
+  const filteredEnquiry = selectedPillar ? ENQUIRY_DATA.filter(e => e.pillar === selectedPillar) : ENQUIRY_DATA;
+  const filteredDeals = selectedPillar ? DEAL_DATA.filter(d => d.pillar === selectedPillar) : DEAL_DATA;
+
   // Filtered data
-  const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const prevLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
-  const weekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
-  const prevDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
+  const weekLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, weekStart, end));
+  const prevLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
+  const weekDeals = filteredDeals.filter(d => isInRange(d.closeDate, weekStart, end));
+  const prevDeals = filteredDeals.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
 
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
