@@ -61,7 +61,9 @@ function DashboardContent() {
 const Index = () => (
   <DataProvider>
     <WeekProvider>
-      <DashboardContent />
+      <PillarFilterProvider>
+        <DashboardContent />
+      </PillarFilterProvider>
     </WeekProvider>
   </DataProvider>
 );
