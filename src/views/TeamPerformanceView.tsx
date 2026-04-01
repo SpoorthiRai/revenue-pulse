@@ -32,7 +32,12 @@ interface RepData {
 }
 
 export function TeamPerformanceView() {
-  const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA, poData: PO_DATA, invoiceData: INVOICE_DATA } = useData();
+  const { enquiryData: RAW_ENQ, dealData: RAW_DEALS, poData: RAW_PO, invoiceData: INVOICE_DATA } = useData();
+  const { selectedPillar } = usePillarFilter();
+
+  const ENQUIRY_DATA = selectedPillar ? RAW_ENQ.filter(e => e.pillar === selectedPillar) : RAW_ENQ;
+  const DEAL_DATA = selectedPillar ? RAW_DEALS.filter(d => d.pillar === selectedPillar) : RAW_DEALS;
+  const PO_DATA = selectedPillar ? RAW_PO.filter(p => p.serviceCategory === selectedPillar) : RAW_PO;
 
   const repData = useMemo<RepData[]>(() => {
     const reps = [...new Set(ENQUIRY_DATA.map(e => e.assignedTo))];
