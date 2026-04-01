@@ -293,17 +293,19 @@ export function ExecutiveSummaryView() {
 
   // Add won/lost columns to weeklyActivity for win-loss mode
   const trendData = useMemo(() => {
-    return weeklyActivity.map(w => ({
-      ...w,
-      lost: filteredDeals.filter(d => {
+    return weeklyActivity.map(w => {
+      const lost = filteredDeals.filter(d => {
         const mon = new Date(weekStart);
         const parts = w.week.split('/');
         const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
         const wkSun = new Date(wkMon.getTime() + 6 * 86400000);
         wkSun.setHours(23, 59, 59, 999);
         return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
-      }).length,
-    }));
+      }).length;
+      const decided = w.won + lost;
+      const winRate = decided > 0 ? Math.round((w.won / decided) * 100) : 0;
+      return { ...w, lost, winRate };
+    });
   }, [weeklyActivity, filteredDeals, weekStart]);
 
   return (
@@ -638,6 +640,50 @@ export function ExecutiveSummaryView() {
                 </>
               )}
             </LineChart>
+          )}
+        </ResponsiveContainer>
+
+        {/* Divider */}
+        <div className="border-t my-4" />
+
+        {/* Bar chart — same toggle, same data */}
+        <h4 className="text-xs font-semibold text-muted-foreground mb-3">
+          {trendMode === 'leads-deals' ? 'Lead & Deal Volume — Bar View' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue — Bar View' : 'Wins vs Losses — Bar View'}
+        </h4>
+        <ResponsiveContainer width="100%" height={260}>
+          {trendMode === 'win-loss' ? (
+            <ComposedChart data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis yAxisId="left" fontSize={11} />
+              <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => `${v}%`} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Bar yAxisId="left" dataKey="won" name="Won" fill="hsl(160,84%,39%)" radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="left" dataKey="lost" name="Lost" fill="hsl(0,84%,60%)" radius={[3, 3, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="winRate" name="Win Rate %" stroke="hsl(38,92%,50%)" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
+          ) : trendMode === 'deals-revenue' ? (
+            <BarChart data={weeklyActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis yAxisId="left" fontSize={11} />
+              <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Bar yAxisId="left" dataKey="deals" name="Total Deals" fill="hsl(217,91%,60%)" radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="right" dataKey="revenue" name="Revenue" fill="hsl(38,92%,50%)" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          ) : (
+            <BarChart data={weeklyActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
+              <XAxis dataKey="week" fontSize={11} />
+              <YAxis fontSize={11} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="leads" name="Leads" fill="hsl(174,83%,32%)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="deals" name="Total Deals" fill="hsl(217,91%,60%)" radius={[3, 3, 0, 0]} />
+            </BarChart>
           )}
         </ResponsiveContainer>
       </div>
