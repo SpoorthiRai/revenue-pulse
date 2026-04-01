@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useData } from '@/context/DataContext';
+import { usePillarFilter } from '@/context/PillarFilterContext';
 import { KPICard } from '@/components/KPICard';
 import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
 import { Users, TrendingUp, Trophy, DollarSign } from 'lucide-react';
