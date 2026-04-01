@@ -153,7 +153,7 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.deals > 0);
   }, [weekDeals]);
 
-  const totalPipelineActive = DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
+  const totalPipelineActive = filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
     .reduce((s, d) => s + d.expectedAmount, 0);
   const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
 
