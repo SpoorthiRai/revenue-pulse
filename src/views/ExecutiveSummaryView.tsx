@@ -157,7 +157,32 @@ export function ExecutiveSummaryView() {
     .reduce((s, d) => s + d.expectedAmount, 0);
   const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
 
-  // ========== SECTION 5: Service Pillar ==========
+  // ========== SECTION 5: Service Pillar (UNFILTERED for donut charts) ==========
+  const allWeekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
+  const allWeekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+  const allWonDeals = allWeekDeals.filter(d => d.stage === 'Win');
+
+  const donutDealData = useMemo(() => {
+    const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar).concat(DEAL_DATA.map(d => d.pillar)))].filter(Boolean);
+    return pillars.map(pillar => {
+      const deals = allWonDeals.filter(d => d.pillar === pillar);
+      return { name: pillar, value: deals.length, color: getPillarColor(pillar) };
+    }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+  }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
+
+  const donutRevenueData = useMemo(() => {
+    const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar).concat(DEAL_DATA.map(d => d.pillar)))].filter(Boolean);
+    return pillars.map(pillar => {
+      const deals = allWonDeals.filter(d => d.pillar === pillar);
+      const revenue = deals.reduce((s, d) => s + d.negotiatedAmount, 0);
+      return { name: pillar, value: revenue, color: getPillarColor(pillar) };
+    }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+  }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
+
+  const totalDealsWon = allWonDeals.length;
+  const totalRevenueWon = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+
+  // Keep servicePillarData for insights
   const servicePillarData = useMemo(() => {
     const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
     return pillars.map(pillar => {
@@ -171,11 +196,6 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.leads > 0 || s.dealsWon > 0).sort((a, b) => b.revenue - a.revenue);
   }, [weekLeads, wonDeals, weekDeals, ENQUIRY_DATA]);
 
-  const revenueByPillar = servicePillarData.filter(s => s.revenue > 0).map(s => ({
-    name: s.pillar,
-    value: s.revenue,
-  }));
-
   // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
     const weeks: { week: string; leads: number; converted: number; deals: number; won: number; revenue: number }[] = [];
@@ -187,9 +207,9 @@ export function ExecutiveSummaryView() {
       const sun = getSunday(mon);
       const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
-      const bucketLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd));
+      const bucketLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, mon, bucketEnd));
       const bucketConverted = bucketLeads.filter(e => e.status === 'Converted');
-      const bucketDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd));
+      const bucketDeals = filteredDeals.filter(d => isInRange(d.closeDate, mon, bucketEnd));
       const bucketWon = bucketDeals.filter(d => d.stage === 'Win');
       weeks.push({
         week: label,
@@ -202,7 +222,7 @@ export function ExecutiveSummaryView() {
       current += 7 * 86400000;
     }
     return weeks;
-  }, [weekStart, end, ENQUIRY_DATA, DEAL_DATA]);
+  }, [weekStart, end, filteredEnquiry, filteredDeals]);
 
   // ========== SECTION 8: Bottleneck ==========
   const stuckDeals = useMemo(() => {
