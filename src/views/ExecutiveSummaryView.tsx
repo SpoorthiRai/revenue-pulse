@@ -295,7 +295,7 @@ export function ExecutiveSummaryView() {
   const trendData = useMemo(() => {
     return weeklyActivity.map(w => ({
       ...w,
-      lost: DEAL_DATA.filter(d => {
+      lost: filteredDeals.filter(d => {
         const mon = new Date(weekStart);
         const parts = w.week.split('/');
         const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -304,7 +304,7 @@ export function ExecutiveSummaryView() {
         return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
       }).length,
     }));
-  }, [weeklyActivity, DEAL_DATA, weekStart]);
+  }, [weeklyActivity, filteredDeals, weekStart]);
 
   return (
     <div className="space-y-6">
