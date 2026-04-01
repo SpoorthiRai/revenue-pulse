@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
+import { usePillarFilter, getPillarColor, PILLAR_COLORS } from '@/context/PillarFilterContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
 import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart
+  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart,
+  PieChart, Pie, Sector
 } from 'recharts';
 
 const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)', 'hsl(217,91%,60%)', 'hsl(262,83%,58%)'];
