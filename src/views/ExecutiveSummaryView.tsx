@@ -227,7 +227,7 @@ export function ExecutiveSummaryView() {
   // ========== SECTION 8: Bottleneck ==========
   const stuckDeals = useMemo(() => {
     const today = new Date('2025-10-07');
-    return DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
+    return filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
       const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.closeDate).getTime()) / 86400000));
       return { ...d, daysInStage };
     });
