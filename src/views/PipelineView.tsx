@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useData } from '@/context/DataContext';
+import { usePillarFilter } from '@/context/PillarFilterContext';
 import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -28,9 +29,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const STAGE_COLORS: Record<string, string> = { Win: '#10B981', Negotiation: '#F59E0B', Cancel: '#EF4444', Lost: '#9CA3AF' };
 
 export function PipelineView() {
-  const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
+  const { enquiryData: RAW_ENQUIRY, dealData: RAW_DEALS } = useData();
   const { weekStart, weekEnd } = useWeek();
+  const { selectedPillar } = usePillarFilter();
   const end = weekEnd;
+
+  const ENQUIRY_DATA = selectedPillar ? RAW_ENQUIRY.filter(e => e.pillar === selectedPillar) : RAW_ENQUIRY;
+  const DEAL_DATA = selectedPillar ? RAW_DEALS.filter(d => d.pillar === selectedPillar) : RAW_DEALS;
 
   const [pillarFilter, setPillarFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');

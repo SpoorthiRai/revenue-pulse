@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useData } from '@/context/DataContext';
 import { useWeek } from '@/context/WeekContext';
+import { usePillarFilter, getPillarColor, PILLAR_COLORS } from '@/context/PillarFilterContext';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange, getMonday, getSunday } from '@/lib/formatters';
 import { TrendingUp, TrendingDown, CheckCircle, Activity, Target, Clock, AlertTriangle, Lightbulb, BarChart3, Minus } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart
+  LineChart, Line, CartesianGrid, Legend, Cell, Area, ComposedChart,
+  PieChart, Pie, Sector
 } from 'recharts';
 
 const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)', 'hsl(217,91%,60%)', 'hsl(262,83%,58%)'];
@@ -42,6 +44,7 @@ function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: nu
 export function ExecutiveSummaryView() {
   const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
+  const { selectedPillar, togglePillar } = usePillarFilter();
   const end = weekEnd;
 
   // Previous period
@@ -49,11 +52,15 @@ export function ExecutiveSummaryView() {
   const prevStart = new Date(weekStart.getTime() - diff);
   const prevEnd = new Date(weekStart.getTime() - 1);
 
+  // Apply pillar filter to raw data
+  const filteredEnquiry = selectedPillar ? ENQUIRY_DATA.filter(e => e.pillar === selectedPillar) : ENQUIRY_DATA;
+  const filteredDeals = selectedPillar ? DEAL_DATA.filter(d => d.pillar === selectedPillar) : DEAL_DATA;
+
   // Filtered data
-  const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const prevLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
-  const weekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
-  const prevDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
+  const weekLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, weekStart, end));
+  const prevLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
+  const weekDeals = filteredDeals.filter(d => isInRange(d.closeDate, weekStart, end));
+  const prevDeals = filteredDeals.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
 
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
@@ -111,8 +118,8 @@ export function ExecutiveSummaryView() {
 
   // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000;
-  const revenueClosed = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
-  const weightedPipeline = DEAL_DATA.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
+  const revenueClosed = filteredDeals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  const weightedPipeline = filteredDeals.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
 
@@ -146,11 +153,36 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.deals > 0);
   }, [weekDeals]);
 
-  const totalPipelineActive = DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
+  const totalPipelineActive = filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
     .reduce((s, d) => s + d.expectedAmount, 0);
   const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
 
-  // ========== SECTION 5: Service Pillar ==========
+  // ========== SECTION 5: Service Pillar (UNFILTERED for donut charts) ==========
+  const allWeekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
+  const allWeekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+  const allWonDeals = allWeekDeals.filter(d => d.stage === 'Win');
+
+  const donutDealData = useMemo(() => {
+    const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar).concat(DEAL_DATA.map(d => d.pillar)))].filter(Boolean);
+    return pillars.map(pillar => {
+      const deals = allWonDeals.filter(d => d.pillar === pillar);
+      return { name: pillar, value: deals.length, color: getPillarColor(pillar) };
+    }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+  }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
+
+  const donutRevenueData = useMemo(() => {
+    const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar).concat(DEAL_DATA.map(d => d.pillar)))].filter(Boolean);
+    return pillars.map(pillar => {
+      const deals = allWonDeals.filter(d => d.pillar === pillar);
+      const revenue = deals.reduce((s, d) => s + d.negotiatedAmount, 0);
+      return { name: pillar, value: revenue, color: getPillarColor(pillar) };
+    }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+  }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
+
+  const totalDealsWon = allWonDeals.length;
+  const totalRevenueWon = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+
+  // Keep servicePillarData for insights
   const servicePillarData = useMemo(() => {
     const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
     return pillars.map(pillar => {
@@ -164,11 +196,6 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.leads > 0 || s.dealsWon > 0).sort((a, b) => b.revenue - a.revenue);
   }, [weekLeads, wonDeals, weekDeals, ENQUIRY_DATA]);
 
-  const revenueByPillar = servicePillarData.filter(s => s.revenue > 0).map(s => ({
-    name: s.pillar,
-    value: s.revenue,
-  }));
-
   // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
     const weeks: { week: string; leads: number; converted: number; deals: number; won: number; revenue: number }[] = [];
@@ -180,9 +207,9 @@ export function ExecutiveSummaryView() {
       const sun = getSunday(mon);
       const bucketEnd = sun.getTime() > endDate ? end : sun;
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
-      const bucketLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, mon, bucketEnd));
+      const bucketLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, mon, bucketEnd));
       const bucketConverted = bucketLeads.filter(e => e.status === 'Converted');
-      const bucketDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, mon, bucketEnd));
+      const bucketDeals = filteredDeals.filter(d => isInRange(d.closeDate, mon, bucketEnd));
       const bucketWon = bucketDeals.filter(d => d.stage === 'Win');
       weeks.push({
         week: label,
@@ -195,16 +222,16 @@ export function ExecutiveSummaryView() {
       current += 7 * 86400000;
     }
     return weeks;
-  }, [weekStart, end, ENQUIRY_DATA, DEAL_DATA]);
+  }, [weekStart, end, filteredEnquiry, filteredDeals]);
 
   // ========== SECTION 8: Bottleneck ==========
   const stuckDeals = useMemo(() => {
     const today = new Date('2025-10-07');
-    return DEAL_DATA.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
+    return filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
       const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.closeDate).getTime()) / 86400000));
       return { ...d, daysInStage };
     });
-  }, [DEAL_DATA]);
+  }, [filteredDeals]);
 
   const stuckByStage = useMemo(() => {
     const map: Record<string, number> = {};
@@ -268,7 +295,7 @@ export function ExecutiveSummaryView() {
   const trendData = useMemo(() => {
     return weeklyActivity.map(w => ({
       ...w,
-      lost: DEAL_DATA.filter(d => {
+      lost: filteredDeals.filter(d => {
         const mon = new Date(weekStart);
         const parts = w.week.split('/');
         const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -277,7 +304,7 @@ export function ExecutiveSummaryView() {
         return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
       }).length,
     }));
-  }, [weeklyActivity, DEAL_DATA, weekStart]);
+  }, [weeklyActivity, filteredDeals, weekStart]);
 
   return (
     <div className="space-y-6">
@@ -558,56 +585,116 @@ export function ExecutiveSummaryView() {
         </div>
       </div>
 
-      {/* SECTION 5: Service Pillar Performance */}
+      {/* SECTION 5: Service Pillar — Donut Charts */}
       <div className="grid grid-cols-2 gap-4">
+        {/* LEFT: Deals by Service Pillar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Service Pillar Performance</h3>
-          {servicePillarData.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-zebra">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left text-xs font-medium text-muted-foreground pb-2">Service</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Leads</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Won</th>
-                    <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {servicePillarData.map(s => (
-                    <tr key={s.pillar} className="border-b last:border-0">
-                      <td className="py-2 font-medium">{s.pillar}</td>
-                      <td className="py-2 text-center">{s.leads}</td>
-                      <td className="py-2 text-center">{s.dealsWon}</td>
-                      <td className="py-2 text-right font-mono">{formatCurrencyShort(s.revenue)}</td>
-                      <td className="py-2 text-center">{s.winRate.toFixed(0)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <h3 className="text-sm font-semibold mb-2">Deals by Service Pillar</h3>
+          {donutDealData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={donutDealData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    stroke="none"
+                    onClick={(_, idx) => togglePillar(donutDealData[idx].name)}
+                    className="cursor-pointer outline-none"
+                  >
+                    {donutDealData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        opacity={selectedPillar && selectedPillar !== entry.name ? 0.3 : 1}
+                        stroke={selectedPillar === entry.name ? 'white' : 'none'}
+                        strokeWidth={selectedPillar === entry.name ? 3 : 0}
+                      />
+                    ))}
+                  </Pie>
+                  {/* Center label */}
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">{totalDealsWon}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Deals Won</text>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1.5">
+                {donutDealData.map(d => {
+                  const pct = totalDealsWon > 0 ? ((d.value / totalDealsWon) * 100).toFixed(0) : '0';
+                  return (
+                    <div
+                      key={d.name}
+                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      onClick={() => togglePillar(d.name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="font-medium text-foreground">{d.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">{d.value} deals · {pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
-            <p className="text-xs text-muted-foreground">No service data for selected period.</p>
+            <p className="text-xs text-muted-foreground">No deal data for selected period.</p>
           )}
         </div>
 
+        {/* RIGHT: Revenue by Service Pillar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Revenue Contribution by Service</h3>
-          {revenueByPillar.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={revenueByPillar} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-                <XAxis type="number" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
-                <YAxis type="category" dataKey="name" width={90} fontSize={11} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Revenue" radius={[0, 4, 4, 0]}>
-                  {revenueByPillar.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <h3 className="text-sm font-semibold mb-2">Revenue by Service Pillar</h3>
+          {donutRevenueData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={donutRevenueData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    stroke="none"
+                    onClick={(_, idx) => togglePillar(donutRevenueData[idx].name)}
+                    className="cursor-pointer outline-none"
+                  >
+                    {donutRevenueData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        opacity={selectedPillar && selectedPillar !== entry.name ? 0.3 : 1}
+                        stroke={selectedPillar === entry.name ? 'white' : 'none'}
+                        strokeWidth={selectedPillar === entry.name ? 3 : 0}
+                      />
+                    ))}
+                  </Pie>
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-lg font-bold">{formatCurrencyShort(totalRevenueWon)}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Total Revenue</text>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1.5">
+                {donutRevenueData.map(d => {
+                  const pct = totalRevenueWon > 0 ? ((d.value / totalRevenueWon) * 100).toFixed(0) : '0';
+                  return (
+                    <div
+                      key={d.name}
+                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      onClick={() => togglePillar(d.name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="font-medium text-foreground">{d.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">{formatCurrencyShort(d.value)} · {pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">No revenue data for selected period.</p>
           )}

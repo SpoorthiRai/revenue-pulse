@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { WeekProvider, useWeek } from '@/context/WeekContext';
 import { DataProvider, useData } from '@/context/DataContext';
+import { PillarFilterProvider, usePillarFilter } from '@/context/PillarFilterContext';
 import { AppSidebar, ViewId } from '@/components/AppSidebar';
 import { AppHeader } from '@/components/AppHeader';
 import { ExecutiveSummaryView } from '@/views/ExecutiveSummaryView';
@@ -8,12 +9,14 @@ import { PipelineView } from '@/views/PipelineView';
 import { ContractsView } from '@/views/ContractsView';
 import { TeamPerformanceView } from '@/views/TeamPerformanceView';
 import { formatDateShort } from '@/lib/formatters';
+import { X } from 'lucide-react';
 
 function DashboardContent() {
   const [activeView, setActiveView] = useState<ViewId>('executive');
   const { weekStart, weekEnd } = useWeek();
   const { isLoading } = useData();
 
+  const { selectedPillar, setSelectedPillar } = usePillarFilter();
   const weekLabel = `${formatDateShort(weekStart)} – ${formatDateShort(weekEnd)}`;
 
   const renderView = () => {
@@ -38,6 +41,16 @@ function DashboardContent() {
       <div className="flex-1 ml-60 flex flex-col">
         <AppHeader activeView={activeView} />
         <main className="flex-1 p-6 overflow-auto">
+          {selectedPillar && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-3 py-1 text-sm font-medium">
+                Filtered by: {selectedPillar}
+                <button onClick={() => setSelectedPillar(null)} className="hover:bg-primary/20 rounded-full p-0.5 transition-colors">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            </div>
+          )}
           {renderView()}
         </main>
       </div>
@@ -48,7 +61,9 @@ function DashboardContent() {
 const Index = () => (
   <DataProvider>
     <WeekProvider>
-      <DashboardContent />
+      <PillarFilterProvider>
+        <DashboardContent />
+      </PillarFilterProvider>
     </WeekProvider>
   </DataProvider>
 );
