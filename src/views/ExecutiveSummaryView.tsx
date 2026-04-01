@@ -585,56 +585,116 @@ export function ExecutiveSummaryView() {
         </div>
       </div>
 
-      {/* SECTION 5: Service Pillar Performance */}
+      {/* SECTION 5: Service Pillar — Donut Charts */}
       <div className="grid grid-cols-2 gap-4">
+        {/* LEFT: Deals by Service Pillar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Service Pillar Performance</h3>
-          {servicePillarData.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm table-zebra">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left text-xs font-medium text-muted-foreground pb-2">Service</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Leads</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Won</th>
-                    <th className="text-right text-xs font-medium text-muted-foreground pb-2">Revenue</th>
-                    <th className="text-center text-xs font-medium text-muted-foreground pb-2">Win %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {servicePillarData.map(s => (
-                    <tr key={s.pillar} className="border-b last:border-0">
-                      <td className="py-2 font-medium">{s.pillar}</td>
-                      <td className="py-2 text-center">{s.leads}</td>
-                      <td className="py-2 text-center">{s.dealsWon}</td>
-                      <td className="py-2 text-right font-mono">{formatCurrencyShort(s.revenue)}</td>
-                      <td className="py-2 text-center">{s.winRate.toFixed(0)}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <h3 className="text-sm font-semibold mb-2">Deals by Service Pillar</h3>
+          {donutDealData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={donutDealData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    stroke="none"
+                    onClick={(_, idx) => togglePillar(donutDealData[idx].name)}
+                    className="cursor-pointer outline-none"
+                  >
+                    {donutDealData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        opacity={selectedPillar && selectedPillar !== entry.name ? 0.3 : 1}
+                        stroke={selectedPillar === entry.name ? 'white' : 'none'}
+                        strokeWidth={selectedPillar === entry.name ? 3 : 0}
+                      />
+                    ))}
+                  </Pie>
+                  {/* Center label */}
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">{totalDealsWon}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Deals Won</text>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1.5">
+                {donutDealData.map(d => {
+                  const pct = totalDealsWon > 0 ? ((d.value / totalDealsWon) * 100).toFixed(0) : '0';
+                  return (
+                    <div
+                      key={d.name}
+                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      onClick={() => togglePillar(d.name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="font-medium text-foreground">{d.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">{d.value} deals · {pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
-            <p className="text-xs text-muted-foreground">No service data for selected period.</p>
+            <p className="text-xs text-muted-foreground">No deal data for selected period.</p>
           )}
         </div>
 
+        {/* RIGHT: Revenue by Service Pillar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Revenue Contribution by Service</h3>
-          {revenueByPillar.length > 0 ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={revenueByPillar} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-                <XAxis type="number" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
-                <YAxis type="category" dataKey="name" width={90} fontSize={11} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Revenue" radius={[0, 4, 4, 0]}>
-                  {revenueByPillar.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <h3 className="text-sm font-semibold mb-2">Revenue by Service Pillar</h3>
+          {donutRevenueData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={donutRevenueData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    stroke="none"
+                    onClick={(_, idx) => togglePillar(donutRevenueData[idx].name)}
+                    className="cursor-pointer outline-none"
+                  >
+                    {donutRevenueData.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={entry.color}
+                        opacity={selectedPillar && selectedPillar !== entry.name ? 0.3 : 1}
+                        stroke={selectedPillar === entry.name ? 'white' : 'none'}
+                        strokeWidth={selectedPillar === entry.name ? 3 : 0}
+                      />
+                    ))}
+                  </Pie>
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-lg font-bold">{formatCurrencyShort(totalRevenueWon)}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Total Revenue</text>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-2 space-y-1.5">
+                {donutRevenueData.map(d => {
+                  const pct = totalRevenueWon > 0 ? ((d.value / totalRevenueWon) * 100).toFixed(0) : '0';
+                  return (
+                    <div
+                      key={d.name}
+                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      onClick={() => togglePillar(d.name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+                        <span className="font-medium text-foreground">{d.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">{formatCurrencyShort(d.value)} · {pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <p className="text-xs text-muted-foreground">No revenue data for selected period.</p>
           )}
