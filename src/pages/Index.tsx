@@ -16,6 +16,7 @@ function DashboardContent() {
   const { weekStart, weekEnd } = useWeek();
   const { isLoading } = useData();
 
+  const { selectedPillar, setSelectedPillar } = usePillarFilter();
   const weekLabel = `${formatDateShort(weekStart)} – ${formatDateShort(weekEnd)}`;
 
   const renderView = () => {
