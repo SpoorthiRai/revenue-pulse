@@ -293,17 +293,19 @@ export function ExecutiveSummaryView() {
 
   // Add won/lost columns to weeklyActivity for win-loss mode
   const trendData = useMemo(() => {
-    return weeklyActivity.map(w => ({
-      ...w,
-      lost: filteredDeals.filter(d => {
+    return weeklyActivity.map(w => {
+      const lost = filteredDeals.filter(d => {
         const mon = new Date(weekStart);
         const parts = w.week.split('/');
         const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
         const wkSun = new Date(wkMon.getTime() + 6 * 86400000);
         wkSun.setHours(23, 59, 59, 999);
         return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
-      }).length,
-    }));
+      }).length;
+      const decided = w.won + lost;
+      const winRate = decided > 0 ? Math.round((w.won / decided) * 100) : 0;
+      return { ...w, lost, winRate };
+    });
   }, [weeklyActivity, filteredDeals, weekStart]);
 
   return (
