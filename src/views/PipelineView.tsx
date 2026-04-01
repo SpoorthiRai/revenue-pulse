@@ -5,8 +5,8 @@ import { useWeek } from '@/context/WeekContext';
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
-import { formatCurrencyShort, formatCurrency, isInRange } from '@/lib/formatters';
-import { Users, CheckCircle, TrendingUp, DollarSign, ArrowUpDown } from 'lucide-react';
+import { formatCurrencyShort, formatCurrency, isInRange, percentChange } from '@/lib/formatters';
+import { Users, CheckCircle, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend
 } from 'recharts';
