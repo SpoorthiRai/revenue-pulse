@@ -118,8 +118,8 @@ export function ExecutiveSummaryView() {
 
   // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000;
-  const revenueClosed = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
-  const weightedPipeline = DEAL_DATA.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
+  const revenueClosed = filteredDeals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  const weightedPipeline = filteredDeals.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
 
