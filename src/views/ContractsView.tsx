@@ -29,9 +29,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function ContractsView() {
-  const { poData: PO_DATA } = useData();
+  const { poData: RAW_PO } = useData();
   const { weekStart, weekEnd } = useWeek();
+  const { selectedPillar } = usePillarFilter();
   const end = weekEnd;
+
+  const PO_DATA = selectedPillar ? RAW_PO.filter(p => p.serviceCategory === selectedPillar) : RAW_PO;
 
   const [expandedPO, setExpandedPO] = useState<string | null>(null);
 
