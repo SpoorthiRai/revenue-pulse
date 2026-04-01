@@ -231,7 +231,7 @@ export function ExecutiveSummaryView() {
       const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.closeDate).getTime()) / 86400000));
       return { ...d, daysInStage };
     });
-  }, [DEAL_DATA]);
+  }, [filteredDeals]);
 
   const stuckByStage = useMemo(() => {
     const map: Record<string, number> = {};
