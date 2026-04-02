@@ -386,20 +386,40 @@ export function ExecutiveSummaryView() {
       </div>
 
       {/* SECTION 1: Executive KPI Cards */}
-      <div className="grid grid-cols-6 gap-3">
-        {kpis.map(kpi => (
-          <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
-              <span className="text-muted-foreground">{kpi.icon}</span>
+      <div className="flex gap-3">
+        {/* Filtered KPIs */}
+        <div className="grid grid-cols-3 gap-3 flex-1">
+          {filteredKpis.map(kpi => (
+            <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+                <span className="text-muted-foreground">{kpi.icon}</span>
+              </div>
+              <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+              <div className="mt-2 space-y-0.5">
+                {kpi.change && <TrendBadge change={kpi.change} />}
+                <p className="text-xs text-muted-foreground">{kpi.prevValue}</p>
+              </div>
             </div>
-            <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-            <div className="mt-2 space-y-0.5">
-              {kpi.change && <TrendBadge change={kpi.change} />}
-              <p className="text-xs text-muted-foreground">{kpi.prevValue}</p>
-            </div>
+          ))}
+        </div>
+
+        {/* All Time Benchmark KPIs */}
+        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 flex-1">
+          <p className="text-[11px] text-muted-foreground mb-2">All Time Benchmarks · not affected by filters</p>
+          <div className="grid grid-cols-3 gap-3">
+            {benchmarkKpis.map(kpi => (
+              <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+                  <span className="text-muted-foreground">{kpi.icon}</span>
+                </div>
+                <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{kpi.benchmark}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
