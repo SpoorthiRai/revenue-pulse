@@ -58,7 +58,7 @@ export function PipelineView() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return data;
-  }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir, ENQUIRY_DATA]);
+  }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir, ENQUIRY_DATA, weekStart, end]);
 
   const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
   const converted = weekLeads.filter(e => e.status === 'Converted').length;

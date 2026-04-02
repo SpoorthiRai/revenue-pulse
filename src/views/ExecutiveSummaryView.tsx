@@ -393,7 +393,7 @@ export function ExecutiveSummaryView() {
       {/* SECTION 1: Executive KPI Cards */}
       <div className="flex gap-3">
         {/* Filtered KPIs */}
-        <div className="grid grid-cols-3 gap-3 flex-1">
+        <div className="grid grid-cols-4 gap-3 flex-1">
           {filteredKpis.map(kpi => (
             <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">

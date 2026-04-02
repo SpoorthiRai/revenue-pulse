@@ -86,6 +86,7 @@ export function AppHeader({ activeView }: { activeView: string }) {
             { key: 'week', label: 'Last Week' },
             { key: 'month', label: 'This Month' },
             { key: 'quarter', label: 'This Quarter' },
+            { key: 'year', label: 'This Year' },
             { key: 'all', label: 'All Time' },
           ].map(b => (
             <button
