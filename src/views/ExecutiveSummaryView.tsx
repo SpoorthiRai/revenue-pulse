@@ -69,12 +69,12 @@ export function ExecutiveSummaryView() {
   const revenueWon = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
   const prevRevenueWon = prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
 
-  const pipelineValue = weekDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
-    .reduce((s, d) => s + d.expectedAmount, 0)
-    + wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
-  const prevPipelineValue = prevDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage))
-    .reduce((s, d) => s + d.expectedAmount, 0)
-    + prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
+  const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage))
+    .reduce((s, d) => s + d.negotiatedAmount, 0);
+  const prevPipelineValue = prevDeals.filter(d => openStages.includes(d.stage))
+    .reduce((s, d) => s + d.negotiatedAmount, 0);
+  const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
 
   const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;

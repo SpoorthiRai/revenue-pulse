@@ -66,7 +66,9 @@ export function PipelineView() {
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
   const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
-  const pipelineValue = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
+  const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.negotiatedAmount, 0);
+  const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
 
   const sourceData = useMemo(() => {
     const map: Record<string, number> = {};
