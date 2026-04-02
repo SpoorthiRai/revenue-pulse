@@ -73,41 +73,35 @@ interface DataContextType {
   invoiceData: Invoice[];
   refreshData: () => void;
   isLoading: boolean;
+  dataWarnings: string[];
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
-// ========== Excel date parsing ==========
-function excelDateToString(val: any): string {
+// ========== Helpers ==========
+function safeDateString(val: any): string {
   if (!val) return '';
-  // If it's already a string that looks like a date
   if (typeof val === 'string') {
-    // Handle "22-Aug-2025" or "2025-08-22" or "01-Oct-2025" etc.
     const d = new Date(val);
-    if (!isNaN(d.getTime())) {
-      return formatDate(d);
-    }
+    if (!isNaN(d.getTime())) return formatDate(d);
     return val;
   }
-  // Excel serial number
   if (typeof val === 'number') {
     const d = XLSX.SSF.parse_date_code(val);
-    if (d) {
-      return formatDate(new Date(d.y, d.m - 1, d.d));
-    }
+    if (d) return formatDate(new Date(d.y, d.m - 1, d.d));
+  }
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return formatDate(val);
   }
   return String(val);
 }
 
 function formatDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function parseNumber(val: any): number {
-  if (typeof val === 'number') return val;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
   if (typeof val === 'string') {
     const cleaned = val.replace(/[₹,\s]/g, '');
     const n = parseFloat(cleaned);
@@ -116,157 +110,153 @@ function parseNumber(val: any): number {
   return 0;
 }
 
-function parsePercent(val: any): number {
-  if (typeof val === 'number') {
-    // xlsx sometimes returns percentages as decimals (0.1 for 10%)
-    if (val > 0 && val <= 1) return val * 100;
-    return val;
-  }
-  if (typeof val === 'string') {
-    const cleaned = val.replace(/[%\\s]/g, '');
-    const n = parseFloat(cleaned);
-    return isNaN(n) ? 0 : n;
-  }
-  return 0;
-}
+// ========== Lead stages vs Deal stages ==========
+const LEAD_STAGES = new Set([
+  'Lead Generation', 'Lead Qualification', 'First Contact',
+  'Discovery Meeting', 'Approach or Demo', 'Converted',
+]);
 
-// ========== Parsing functions ==========
-function parseEnquirySheet(ws: XLSX.WorkSheet): Enquiry[] {
+const DEAL_STAGES = new Set([
+  'Commercial Proposal', 'Negotiation', 'Win', 'Lost',
+  'Cancel', 'Cancelled', 'Closed',
+]);
+
+// ========== Sheet 1: Lead - Deal ==========
+function parseLeadDealSheet(ws: XLSX.WorkSheet): { enquiries: Enquiry[]; deals: Deal[] } {
   const data = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
-  return data
-    .filter((row: any) => {
-      const leadNum = row['Lead Number'] || row['lead_number'] || '';
-      return leadNum && typeof leadNum === 'string' && leadNum.startsWith('L') && !leadNum.includes('💡');
-    })
-    .map((row: any) => ({
-      leadNumber: String(row['Lead Number'] || ''),
+  const enquiries: Enquiry[] = [];
+  const deals: Deal[] = [];
+
+  for (const row of data) {
+    const leadNumber = String(row['Lead Number'] || '');
+    if (!leadNumber.startsWith('L')) continue;
+
+    const salesStage = String(row['Sales Stage'] || '').trim();
+    const recordType = String(row['Status'] || '').trim();
+    const company = String(row['Company name '] || row['Company name'] || '');
+    const contact = String(row['Contact Names'] || '');
+    const pillar = String(row['Service Pillar'] || '');
+    const subCategory = String(row['Sub-Categories'] || '');
+    const assignedTo = String(row['Assigned To'] || '');
+    const source = String(row['Lead Source'] || '');
+    const comments = String(row['Comment'] || '');
+    const expectedAmount = parseNumber(row['Expected Amount(₹)']);
+    const negotiatedAmount = parseNumber(row['Final Negotiated Amount(₹)']);
+    const createdLeadDate = safeDateString(row['Created Lead At']);
+    const createdDealDate = safeDateString(row['Created Deal Date']);
+    const closeDate = safeDateString(row['Expected Close Date']);
+
+    // Determine if this row is a lead or deal
+    const isLead = recordType === 'Lead' || LEAD_STAGES.has(salesStage);
+    const isDeal = recordType === 'Deal' || DEAL_STAGES.has(salesStage);
+
+    // Always add to enquiryData (all rows are leads at some point)
+    enquiries.push({
+      leadNumber,
       leadName: String(row['Lead Name'] || ''),
-      company: String(row['Company Name'] || ''),
-      contact: String(row['Contact Name'] || ''),
-      pillar: String(row['Service Pillar'] || ''),
-      subCategory: String(row['Sub Category'] || ''),
-      assignedTo: String(row['Assigned To'] || ''),
-      source: String(row['Lead Source'] || ''),
-      status: String(row['Status'] || ''),
-      comments: String(row['Comments'] || ''),
-      createdDate: excelDateToString(row['Created Date']),
-    }));
-}
-
-function parseDealSheet(ws: XLSX.WorkSheet): Deal[] {
-  const data = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
-  const seen = new Set<string>();
-  return data
-    .filter((row: any) => {
-      const dealId = String(row['Deal ID\r\n(Lead No.)'] || row['Deal ID (Lead No.)'] || row['Deal ID\n(Lead No.)'] || '');
-      return dealId && dealId.startsWith('L') && !dealId.includes('💡');
-    })
-    .map((row: any) => {
-      // Try multiple possible header names
-      const dealId = String(row['Deal ID\r\n(Lead No.)'] || row['Deal ID (Lead No.)'] || row['Deal ID\n(Lead No.)'] || '');
-      return {
-        dealId,
-        company: String(row['Company Name'] || ''),
-        contact: String(row['Contact Name'] || ''),
-        pillar: String(row['Service Pillar'] || ''),
-        expectedAmount: parseNumber(row['Expected Amount']),
-        negotiatedAmount: parseNumber(row['Negotiated Amount']),
-        closeDate: excelDateToString(row['Expected Close Date']),
-        stage: String(row['Sales Stage'] || ''),
-        assignedTo: String(row['Assigned To'] || ''),
-        comments: String(row['Comments'] || ''),
-      };
-    })
-    .filter(d => {
-      // Remove duplicates - keep first occurrence
-      const key = `${d.dealId}-${d.stage}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+      company,
+      contact,
+      pillar,
+      subCategory,
+      assignedTo,
+      source,
+      // Use salesStage as status so "Converted" check works
+      status: salesStage || recordType,
+      comments,
+      createdDate: createdLeadDate,
     });
+
+    // Add to dealData if it's a deal
+    if (isDeal) {
+      deals.push({
+        dealId: leadNumber,
+        company,
+        contact,
+        pillar,
+        expectedAmount,
+        negotiatedAmount,
+        closeDate: closeDate || createdDealDate,
+        stage: salesStage,
+        assignedTo,
+        comments,
+      });
+    }
+  }
+
+  return { enquiries, deals };
 }
 
-function parsePOSheet(ws: XLSX.WorkSheet): PO[] {
+// ========== Sheet 2: PO_Workflow ==========
+function parsePOWorkflowSheet(ws: XLSX.WorkSheet): PO[] {
   const data = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
-  return data
-    .filter((row: any) => {
-      const poNum = row['PO Number'] || '';
-      return poNum && typeof poNum === 'string' && poNum.startsWith('PO-');
-    })
-    .map((row: any) => ({
-      poNumber: String(row['PO Number'] || ''),
-      dealId: String(row['Source Deal ID\r\n← Enter Here'] || row['Source Deal ID'] || row['Source Deal ID\n← Enter Here'] || ''),
-      customer: String(row['Customer Name'] || ''),
-      company: String(row['Company'] || row['Customer Name'] || ''),
-      gstNumber: String(row['GST Number'] || ''),
-      serviceCategory: String(row['Service Category'] || ''),
-      serviceDescription: String(row['Service Description'] || ''),
-      poDate: excelDateToString(row['PO Date']),
-      startDate: excelDateToString(row['Start Date']),
-      endDate: excelDateToString(row['End Date']),
-      duration: parseNumber(row['Duration\r\n(Months)'] || row['Duration (Months)'] || row['Duration\n(Months)'] || 0),
-      quantity: parseNumber(row['Quantity'] || 0),
-      totalValue: parseNumber(row['Total PO Value']),
-      monthlyBilling: parseNumber(row['PO Monthly Billing']),
-      billingTerms: String(row['Billing Terms'] || ''),
-      advancePercent: parsePercent(row['Advance %'] || 0),
-      milestones: String(row['Milestone Details'] || ''),
-      assignedTo: String(row['Assigned\r\nSales Owner'] || row['Assigned Sales Owner'] || row['Assigned\nSales Owner'] || ''),
-      status: String(row['PO Status'] || ''),
-      validated: String(row['Validated\r\n(Yes/No)'] || row['Validated (Yes/No)'] || row['Validated\n(Yes/No)'] || ''),
-    }));
+  const today = new Date();
+
+  return data.map((row: any) => {
+    const expiry = safeDateString(row['Expiry']);
+    let status = 'Active';
+    if (expiry) {
+      const expiryDate = new Date(expiry);
+      if (!isNaN(expiryDate.getTime()) && expiryDate < today) {
+        status = 'Completed';
+      }
+    }
+
+    const poRaw = String(row['PO'] || '-');
+    const poNumber = poRaw === '-' ? '' : poRaw;
+    const totalValue = parseNumber(row['Total value']);
+    const monthlyBilling = parseNumber(row['Value per Invoice']);
+
+    const startDate = safeDateString(row['Start Date']);
+    const endDate = safeDateString(row['End Date']);
+    const poDate = String(row['PO Date'] || '');
+
+    return {
+      poNumber: poNumber || `PO-${row['Customer']?.slice(0, 8) || 'UNK'}`,
+      dealId: '',
+      customer: String(row['Customer'] || ''),
+      company: String(row['Billing Entity'] || row['Customer'] || ''),
+      gstNumber: '',
+      serviceCategory: String(row['Service'] || ''),
+      serviceDescription: String(row['Service'] || ''),
+      poDate: poDate === '-' ? '' : safeDateString(poDate),
+      startDate,
+      endDate,
+      duration: 0,
+      quantity: 0,
+      totalValue,
+      monthlyBilling,
+      billingTerms: String(row['Billing Cycle'] || ''),
+      advancePercent: 0,
+      milestones: String(row['Billing Due'] || ''),
+      assignedTo: '',
+      status,
+      validated: String(row['Agreement'] || ''),
+    };
+  });
 }
 
-// Generate invoice data from POs (since no invoice sheet in Excel)
+// ========== Invoice generation from POs ==========
 function generateInvoiceData(poData: PO[]): Invoice[] {
   const invoices: Invoice[] = [];
   let invCounter = 1;
-  const today = new Date('2026-03-11');
+  const today = new Date();
 
   for (const po of poData) {
-    if (!po.startDate || !po.endDate) continue;
-    const start = new Date(po.startDate);
-    const end = new Date(po.endDate);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+    if (!po.startDate && !po.poDate) continue;
+    const start = new Date(po.startDate || po.poDate);
+    const end = po.endDate ? new Date(po.endDate) : new Date(start.getTime() + 365 * 86400000);
+    if (isNaN(start.getTime())) continue;
 
-    if (po.billingTerms === 'Monthly') {
+    if (po.billingTerms === 'Monthly' && po.monthlyBilling > 0) {
       let current = new Date(start);
-      while (current <= end) {
+      const limit = isNaN(end.getTime()) ? new Date(start.getTime() + 365 * 86400000) : end;
+      while (current <= limit) {
         const invoiceDate = formatDate(current);
         const dueDate = new Date(current);
         dueDate.setDate(dueDate.getDate() + 30);
         const dueDateStr = formatDate(dueDate);
-
-        const isPaid = dueDate < today && current < new Date('2026-02-01');
+        const isPaid = dueDate < today && current < new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const isSent = !isPaid && dueDate < new Date(today.getTime() + 30 * 86400000);
-
-        let status: string;
-        let cfoApproval: string;
-        let amountReceived: number;
-        let receivedDate: string | null;
-        let balance: number;
-
-        if (isPaid) {
-          status = 'Paid';
-          cfoApproval = 'Approved';
-          amountReceived = po.monthlyBilling;
-          const rd = new Date(dueDate);
-          rd.setDate(rd.getDate() - 2);
-          receivedDate = formatDate(rd);
-          balance = 0;
-        } else if (isSent) {
-          status = 'Invoice Sent';
-          cfoApproval = 'Approved';
-          amountReceived = 0;
-          receivedDate = null;
-          balance = po.monthlyBilling;
-        } else {
-          status = 'Draft';
-          cfoApproval = 'Pending';
-          amountReceived = 0;
-          receivedDate = null;
-          balance = po.monthlyBilling;
-        }
 
         invoices.push({
           invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
@@ -275,107 +265,98 @@ function generateInvoiceData(poData: PO[]): Invoice[] {
           amount: po.monthlyBilling,
           invoiceDate,
           dueDate: dueDateStr,
-          status,
-          cfoApproval,
-          amountReceived,
-          receivedDate,
-          balance,
+          status: isPaid ? 'Paid' : isSent ? 'Invoice Sent' : 'Draft',
+          cfoApproval: isPaid || isSent ? 'Approved' : 'Pending',
+          amountReceived: isPaid ? po.monthlyBilling : 0,
+          receivedDate: isPaid ? formatDate(new Date(dueDate.getTime() - 2 * 86400000)) : null,
+          balance: isPaid ? 0 : po.monthlyBilling,
         });
-
         current.setMonth(current.getMonth() + 1);
       }
-    } else if (po.billingTerms === 'Milestone') {
-      // Split into milestones based on quantity or default 3
-      const numMilestones = po.quantity || 3;
-      const perMilestone = po.totalValue / numMilestones;
-      const totalMonths = po.duration || 6;
-      const monthsPerMilestone = Math.floor(totalMonths / numMilestones);
-
-      for (let m = 0; m < numMilestones; m++) {
-        const milestoneDate = new Date(start);
-        milestoneDate.setMonth(milestoneDate.getMonth() + m * monthsPerMilestone);
-        const invoiceDate = formatDate(milestoneDate);
-        const dueDate = new Date(milestoneDate);
-        dueDate.setDate(dueDate.getDate() + 30);
-        const dueDateStr = formatDate(dueDate);
-
-        const isPaid = dueDate < today && milestoneDate < new Date('2026-02-01');
-        const isSent = !isPaid && dueDate < new Date(today.getTime() + 30 * 86400000);
-
-        let status: string;
-        let cfoApproval: string;
-        let amountReceived: number;
-        let receivedDate: string | null;
-        let balance: number;
-
-        if (isPaid) {
-          status = 'Paid';
-          cfoApproval = 'Approved';
-          amountReceived = perMilestone;
-          const rd = new Date(dueDate);
-          rd.setDate(rd.getDate() - 2);
-          receivedDate = formatDate(rd);
-          balance = 0;
-        } else if (isSent) {
-          status = 'Invoice Sent';
-          cfoApproval = 'Approved';
-          amountReceived = 0;
-          receivedDate = null;
-          balance = perMilestone;
-        } else {
-          status = 'Draft';
-          cfoApproval = 'Pending';
-          amountReceived = 0;
-          receivedDate = null;
-          balance = perMilestone;
-        }
-
-        invoices.push({
-          invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
-          poNumber: po.poNumber,
-          customer: po.customer,
-          amount: perMilestone,
-          invoiceDate,
-          dueDate: dueDateStr,
-          status,
-          cfoApproval,
-          amountReceived,
-          receivedDate,
-          balance,
-        });
-      }
-    } else if (po.billingTerms === 'Quarterly') {
+    } else if (po.billingTerms === 'Quarterly' && po.monthlyBilling > 0) {
       let current = new Date(start);
-      while (current <= end) {
-        const quarterlyAmount = po.totalValue / (po.quantity || 4);
+      const limit = isNaN(end.getTime()) ? new Date(start.getTime() + 365 * 86400000) : end;
+      while (current <= limit) {
         const invoiceDate = formatDate(current);
         const dueDate = new Date(current);
         dueDate.setDate(dueDate.getDate() + 30);
         const dueDateStr = formatDate(dueDate);
-
-        const isPaid = dueDate < today && current < new Date('2026-02-01');
+        const isPaid = dueDate < today && current < new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const isSent = !isPaid && dueDate < new Date(today.getTime() + 30 * 86400000);
 
         invoices.push({
           invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
           poNumber: po.poNumber,
           customer: po.customer,
-          amount: quarterlyAmount,
+          amount: po.monthlyBilling,
           invoiceDate,
           dueDate: dueDateStr,
           status: isPaid ? 'Paid' : isSent ? 'Invoice Sent' : 'Pending',
-          cfoApproval: isPaid ? 'Approved' : isSent ? 'Approved' : 'Pending',
-          amountReceived: isPaid ? quarterlyAmount : 0,
+          cfoApproval: isPaid || isSent ? 'Approved' : 'Pending',
+          amountReceived: isPaid ? po.monthlyBilling : 0,
           receivedDate: isPaid ? formatDate(new Date(dueDate.getTime() - 2 * 86400000)) : null,
-          balance: isPaid ? 0 : quarterlyAmount,
+          balance: isPaid ? 0 : po.monthlyBilling,
         });
-
         current.setMonth(current.getMonth() + 3);
       }
+    } else if (po.billingTerms === 'One-time' && po.totalValue > 0) {
+      const invoiceDate = formatDate(start);
+      const dueDate = new Date(start);
+      dueDate.setDate(dueDate.getDate() + 30);
+      const isPaid = dueDate < today;
+
+      invoices.push({
+        invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
+        poNumber: po.poNumber,
+        customer: po.customer,
+        amount: po.totalValue,
+        invoiceDate,
+        dueDate: formatDate(dueDate),
+        status: isPaid ? 'Paid' : 'Invoice Sent',
+        cfoApproval: 'Approved',
+        amountReceived: isPaid ? po.totalValue : 0,
+        receivedDate: isPaid ? formatDate(new Date(dueDate.getTime() - 2 * 86400000)) : null,
+        balance: isPaid ? 0 : po.totalValue,
+      });
     }
   }
 
   return invoices;
+}
+
+// ========== Sanity checks ==========
+function runSanityChecks(enquiries: Enquiry[], deals: Deal[], poData: PO[]): string[] {
+  const warnings: string[] = [];
+  const uniqueLeads = new Set(enquiries.map(e => e.leadNumber)).size;
+  if (uniqueLeads !== 54) warnings.push(`Expected 54 unique leads, got ${uniqueLeads}`);
+
+  const statusLead = enquiries.filter(e => {
+    const stage = e.status;
+    return LEAD_STAGES.has(stage) || stage === 'Lead Generation' || stage === 'Lead Qualification';
+  });
+  // Check by original Status field — we stored salesStage in status, so check differently
+  // Count rows where original Status = "Lead" — we can approximate by non-deal stages
+  const leadCount = enquiries.filter(e => !DEAL_STAGES.has(e.status)).length;
+  if (leadCount !== 24) warnings.push(`Expected 24 Lead-status records, got ${leadCount}`);
+
+  const dealCount = enquiries.filter(e => DEAL_STAGES.has(e.status)).length;
+  if (dealCount !== 29) warnings.push(`Expected 29 Deal-status records, got ${dealCount}`);
+
+  const winCount = deals.filter(d => d.stage === 'Win').length;
+  if (winCount !== 11) warnings.push(`Expected 11 Win deals, got ${winCount}`);
+
+  const revenueWon = deals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  if (Math.abs(revenueWon - 13080000) > 10000) warnings.push(`Expected revenue ≈₹1.31Cr, got ₹${revenueWon}`);
+
+  if (poData.length !== 18) warnings.push(`Expected 18 PO rows, got ${poData.length}`);
+
+  const pillars = new Set(enquiries.map(e => e.pillar).filter(Boolean));
+  const expectedPillars = ['Marketing', 'PreSales', 'Consulting', 'PostSales', 'Growth Consulting', 'Software Dev', 'Finance'];
+  for (const p of expectedPillars) {
+    if (!pillars.has(p)) warnings.push(`Missing service pillar: ${p}`);
+  }
+
+  return warnings;
 }
 
 // ========== Main fetch & parse ==========
@@ -384,26 +365,30 @@ async function fetchAndParseExcel(): Promise<{
   dealData: Deal[];
   poData: PO[];
   invoiceData: Invoice[];
+  warnings: string[];
 }> {
-  const response = await fetch('/data/Deal_to_Billing_Populated.xlsx');
+  const response = await fetch('/data/Sales_Pipeline_v2.xlsx');
   const arrayBuffer = await response.arrayBuffer();
-  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: false });
+  const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
 
-  // Sheet indices based on the Excel structure:
-  // 0: Dropdowns, 1: Enquiry, 2: Deal_Pipeline, 3: PO_Workflow, 4: Input_PO, 5: Contacts
   const sheetNames = wb.SheetNames;
 
-  // Find sheets by trying known names or by index
-  const enquirySheet = wb.Sheets[sheetNames[1]]; // Enquiry sheet
-  const dealSheet = wb.Sheets[sheetNames[2]]; // Deal_Pipeline sheet
-  const poSheet = wb.Sheets[sheetNames[4]]; // Input_PO sheet
+  // Sheet 1: "Lead - Deal"
+  const leadDealSheet = wb.Sheets[sheetNames[0]];
+  const { enquiries, deals } = leadDealSheet ? parseLeadDealSheet(leadDealSheet) : { enquiries: [], deals: [] };
 
-  const enquiryData = enquirySheet ? parseEnquirySheet(enquirySheet) : [];
-  const dealData = dealSheet ? parseDealSheet(dealSheet) : [];
-  const poData = poSheet ? parsePOSheet(poSheet) : [];
+  // Sheet 2: "PO_Workflow"
+  const poSheet = wb.Sheets[sheetNames[1]];
+  const poData = poSheet ? parsePOWorkflowSheet(poSheet) : [];
+
   const invoiceData = generateInvoiceData(poData);
+  const warnings = runSanityChecks(enquiries, deals, poData);
 
-  return { enquiryData, dealData, poData, invoiceData };
+  if (warnings.length > 0) {
+    console.warn('Data sanity check warnings:', warnings);
+  }
+
+  return { enquiryData: enquiries, dealData: deals, poData, invoiceData, warnings };
 }
 
 // ========== Provider ==========
@@ -413,6 +398,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [poData, setPOData] = useState<PO[]>([]);
   const [invoiceData, setInvoiceData] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataWarnings, setDataWarnings] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -422,6 +408,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setDealData(data.dealData);
       setPOData(data.poData);
       setInvoiceData(data.invoiceData);
+      setDataWarnings(data.warnings);
     } catch (err) {
       console.error('Failed to parse Excel data:', err);
     } finally {
@@ -434,7 +421,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [loadData]);
 
   return (
-    <DataContext.Provider value={{ enquiryData, dealData, poData, invoiceData, refreshData: loadData, isLoading }}>
+    <DataContext.Provider value={{ enquiryData, dealData, poData, invoiceData, refreshData: loadData, isLoading, dataWarnings }}>
       {children}
     </DataContext.Provider>
   );
