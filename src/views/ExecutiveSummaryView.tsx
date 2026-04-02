@@ -110,13 +110,33 @@ export function ExecutiveSummaryView() {
   const leadConversionRate = weekLeads.length > 0 ? (convertedLeads / weekLeads.length) * 100 : 0;
   const prevLeadConversionRate = prevLeads.length > 0 ? (prevConvertedLeads / prevLeads.length) * 100 : 0;
 
-  const kpis = [
+  const filteredKpis = [
     { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), prevValue: formatCurrencyShort(prevRevenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
     { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), prevValue: hasActivePipeline ? formatCurrencyShort(prevPipelineValue) : 'No active pipeline', change: hasActivePipeline ? percentChange(pipelineValue, prevPipelineValue) : undefined, icon: <BarChart3 className="h-4 w-4" /> },
     { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, prevValue: `${prevWinRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
-    { title: 'Avg Deal Size', value: formatCurrencyShort(avgDealSize), prevValue: formatCurrencyShort(prevAvgDealSize), change: percentChange(avgDealSize, prevAvgDealSize), icon: <Target className="h-4 w-4" /> },
-    { title: 'Sales Cycle', value: `${salesCycleDays} days`, prevValue: `${prevSalesCycleDays} days`, change: percentChange(salesCycleDays, prevSalesCycleDays), positive: false, icon: <Clock className="h-4 w-4" /> },
-    { title: 'Lead Conversion', value: `${leadConversionRate.toFixed(0)}%`, prevValue: `${prevLeadConversionRate.toFixed(0)}%`, change: percentChange(leadConversionRate, prevLeadConversionRate), icon: <Activity className="h-4 w-4" /> },
+  ];
+
+  // All Time Benchmark KPIs — always use full unfiltered data
+  const allTimeWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
+  const allTimeRevenue = allTimeWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const allTimeAvgDealSize = allTimeWonDeals.length > 0 ? allTimeRevenue / allTimeWonDeals.length : 0;
+
+  const allTimeSalesCycle = useMemo(() => {
+    const days = allTimeWonDeals.map(d => {
+      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
+      if (!lead) return null;
+      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+    }).filter(Boolean) as number[];
+    return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
+  }, [allTimeWonDeals, ENQUIRY_DATA]);
+
+  const allTimeConvertedLeads = ENQUIRY_DATA.filter(e => e.status === 'Converted').length;
+  const allTimeLeadConversion = ENQUIRY_DATA.length > 0 ? (allTimeConvertedLeads / ENQUIRY_DATA.length) * 100 : 0;
+
+  const benchmarkKpis = [
+    { title: 'Avg Deal Size', value: formatCurrencyShort(allTimeAvgDealSize), benchmark: 'Benchmark: varies by pillar', icon: <Target className="h-4 w-4" /> },
+    { title: 'Sales Cycle', value: `${allTimeSalesCycle} days`, benchmark: 'Benchmark: 30–60 days', icon: <Clock className="h-4 w-4" /> },
+    { title: 'Lead Conversion', value: `${allTimeLeadConversion.toFixed(0)}%`, benchmark: 'Benchmark: >70% healthy', icon: <Activity className="h-4 w-4" /> },
   ];
 
   // ========== Revenue & Pipeline calculations ==========
@@ -366,20 +386,40 @@ export function ExecutiveSummaryView() {
       </div>
 
       {/* SECTION 1: Executive KPI Cards */}
-      <div className="grid grid-cols-6 gap-3">
-        {kpis.map(kpi => (
-          <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
-              <span className="text-muted-foreground">{kpi.icon}</span>
+      <div className="flex gap-3">
+        {/* Filtered KPIs */}
+        <div className="grid grid-cols-3 gap-3 flex-1">
+          {filteredKpis.map(kpi => (
+            <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+                <span className="text-muted-foreground">{kpi.icon}</span>
+              </div>
+              <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+              <div className="mt-2 space-y-0.5">
+                {kpi.change && <TrendBadge change={kpi.change} />}
+                <p className="text-xs text-muted-foreground">{kpi.prevValue}</p>
+              </div>
             </div>
-            <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-            <div className="mt-2 space-y-0.5">
-              {kpi.change && <TrendBadge change={kpi.change} />}
-              <p className="text-xs text-muted-foreground">{kpi.prevValue}</p>
-            </div>
+          ))}
+        </div>
+
+        {/* All Time Benchmark KPIs */}
+        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 flex-1">
+          <p className="text-[11px] text-muted-foreground mb-2">All Time Benchmarks · not affected by filters</p>
+          <div className="grid grid-cols-3 gap-3">
+            {benchmarkKpis.map(kpi => (
+              <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
+                  <span className="text-muted-foreground">{kpi.icon}</span>
+                </div>
+                <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+                <p className="mt-2 text-xs text-muted-foreground">{kpi.benchmark}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
