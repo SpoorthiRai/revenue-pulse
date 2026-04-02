@@ -37,6 +37,9 @@ export function AppHeader({ activeView }: { activeView: string }) {
       const currentQuarter = Math.floor(now.getMonth() / 3);
       start = new Date(now.getFullYear(), currentQuarter * 3, 1);
       end = new Date(now.getFullYear(), currentQuarter * 3 + 3, 0);
+    } else if (mode === 'year') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now);
     } else {
       start = new Date('2025-01-01');
       end = new Date('2025-12-31');
