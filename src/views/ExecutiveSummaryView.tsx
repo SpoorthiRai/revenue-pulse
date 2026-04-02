@@ -110,10 +110,15 @@ export function ExecutiveSummaryView() {
   const leadConversionRate = weekLeads.length > 0 ? (convertedLeads / weekLeads.length) * 100 : 0;
   const prevLeadConversionRate = prevLeads.length > 0 ? (prevConvertedLeads / prevLeads.length) * 100 : 0;
 
+  // Deals Closed = Win + Closed
+  const dealsClosed = weekDeals.filter(d => d.stage === 'Win' || d.stage === 'Closed').length;
+  const prevDealsClosed = prevDeals.filter(d => d.stage === 'Win' || d.stage === 'Closed').length;
+
   const filteredKpis = [
     { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), prevValue: formatCurrencyShort(prevRevenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
     { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), prevValue: hasActivePipeline ? formatCurrencyShort(prevPipelineValue) : 'No active pipeline', change: hasActivePipeline ? percentChange(pipelineValue, prevPipelineValue) : undefined, icon: <BarChart3 className="h-4 w-4" /> },
     { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, prevValue: `${prevWinRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
+    { title: 'Deals Closed', value: String(dealsClosed), prevValue: `was ${prevDealsClosed}`, change: percentChange(dealsClosed, prevDealsClosed), icon: <Target className="h-4 w-4" /> },
   ];
 
   // All Time Benchmark KPIs — always use full unfiltered data
@@ -388,7 +393,7 @@ export function ExecutiveSummaryView() {
       {/* SECTION 1: Executive KPI Cards */}
       <div className="flex gap-3">
         {/* Filtered KPIs */}
-        <div className="grid grid-cols-3 gap-3 flex-1">
+        <div className="grid grid-cols-4 gap-3 flex-1">
           {filteredKpis.map(kpi => (
             <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
