@@ -44,9 +44,9 @@ export function isInRange(dateStr: string | null, start: Date, end: Date): boole
   return d >= start && d <= end;
 }
 
-export function percentChange(current: number, previous: number): { value: number; direction: 'up' | 'down' | 'flat' } {
+export function percentChange(current: number, previous: number): { value: number; direction: 'up' | 'down' | 'flat' | 'no_prior' } {
   if (previous === 0 && current === 0) return { value: 0, direction: 'flat' };
-  if (previous === 0) return { value: 100, direction: 'up' };
+  if (previous === 0) return { value: 0, direction: 'no_prior' };
   const pct = ((current - previous) / previous) * 100;
   return { value: Math.abs(pct), direction: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat' };
 }

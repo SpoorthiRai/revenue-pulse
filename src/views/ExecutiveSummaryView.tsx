@@ -29,6 +29,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: number; direction: string }; suffix?: string }) {
+  if (change.direction === 'no_prior') {
+    return <span className="text-xs text-muted-foreground">No prior data</span>;
+  }
   const isUp = change.direction === 'up';
   const isFlat = change.direction === 'flat';
   return (
