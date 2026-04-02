@@ -45,7 +45,7 @@ export function PipelineView() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const filteredLeads = useMemo(() => {
-    let data = [...ENQUIRY_DATA];
+    let data = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
     if (pillarFilter) data = data.filter(d => d.pillar === pillarFilter);
     if (statusFilter) data = data.filter(d => d.status === statusFilter);
     if (assignedFilter) data = data.filter(d => d.assignedTo === assignedFilter);
