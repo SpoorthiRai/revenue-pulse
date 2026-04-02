@@ -164,9 +164,9 @@ export function PipelineView() {
                 const isInactive = stage.current === 0 && stage.prev === 0;
                 const change = percentChange(stage.current, stage.prev);
                 const absDelta = stage.current - stage.prev;
-                const isGood = change.direction === 'flat' ? true
+                const isGood = change.direction === 'flat' || change.direction === 'no_prior' ? true
                   : stage.positive ? change.direction === 'up' : change.direction === 'down';
-                const deltaColor = change.direction === 'flat' ? 'text-muted-foreground' : isGood ? 'text-success' : 'text-destructive';
+                const deltaColor = change.direction === 'flat' || change.direction === 'no_prior' ? 'text-muted-foreground' : isGood ? 'text-success' : 'text-destructive';
 
                 return (
                   <div key={stage.name} className="flex items-stretch flex-1 min-w-0">
@@ -198,13 +198,17 @@ export function PipelineView() {
                           <p className="text-lg font-bold text-foreground leading-tight">{stage.current}</p>
                           <div className="mt-1 space-y-0">
                             <p className="text-[10px] text-muted-foreground">was {stage.prev}</p>
-                            <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
-                              {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
-                              {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
-                              {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
-                              <span>{absDelta >= 0 ? '+' : ''}{absDelta}</span>
-                              <span>({change.value.toFixed(1)}%)</span>
-                            </div>
+                            {change.direction === 'no_prior' ? (
+                              <p className="text-[10px] text-muted-foreground">No prior data</p>
+                            ) : (
+                              <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
+                                {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
+                                {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
+                                {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
+                                <span>{absDelta >= 0 ? '+' : ''}{absDelta}</span>
+                                <span>({change.value.toFixed(1)}%)</span>
+                              </div>
+                            )}
                           </div>
                         </>
                       )}
