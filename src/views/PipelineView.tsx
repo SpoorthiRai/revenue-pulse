@@ -225,7 +225,10 @@ export function PipelineView() {
         <KPICard title="Total Leads" value={String(weekLeads.length)} icon={<Users className="h-5 w-5 text-primary" />} />
         <KPICard title="Converted" value={String(converted)} icon={<CheckCircle className="h-5 w-5 text-success" />} />
         <KPICard title="Win Rate" value={`${winRate.toFixed(0)}%`} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
-        <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} icon={<DollarSign className="h-5 w-5 text-success" />} />
+        <div>
+          <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} icon={<DollarSign className="h-5 w-5 text-success" />} />
+          {!hasActivePipeline && <p className="text-xs text-muted-foreground mt-1 text-center">No active pipeline</p>}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

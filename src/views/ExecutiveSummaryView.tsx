@@ -109,7 +109,7 @@ export function ExecutiveSummaryView() {
 
   const kpis = [
     { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), prevValue: formatCurrencyShort(prevRevenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
-    { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), prevValue: formatCurrencyShort(prevPipelineValue), change: percentChange(pipelineValue, prevPipelineValue), icon: <BarChart3 className="h-4 w-4" /> },
+    { title: 'Pipeline Value', value: formatCurrencyShort(pipelineValue), prevValue: hasActivePipeline ? formatCurrencyShort(prevPipelineValue) : 'No active pipeline', change: hasActivePipeline ? percentChange(pipelineValue, prevPipelineValue) : undefined, icon: <BarChart3 className="h-4 w-4" /> },
     { title: 'Win Rate', value: `${winRate.toFixed(0)}%`, prevValue: `${prevWinRate.toFixed(0)}%`, change: percentChange(winRate, prevWinRate), icon: <CheckCircle className="h-4 w-4" /> },
     { title: 'Avg Deal Size', value: formatCurrencyShort(avgDealSize), prevValue: formatCurrencyShort(prevAvgDealSize), change: percentChange(avgDealSize, prevAvgDealSize), icon: <Target className="h-4 w-4" /> },
     { title: 'Sales Cycle', value: `${salesCycleDays} days`, prevValue: `${prevSalesCycleDays} days`, change: percentChange(salesCycleDays, prevSalesCycleDays), positive: false, icon: <Clock className="h-4 w-4" /> },
