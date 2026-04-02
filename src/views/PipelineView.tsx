@@ -70,25 +70,29 @@ export function PipelineView() {
   const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.negotiatedAmount, 0);
   const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
 
+  // Date-filtered data for charts
+  const dateFilteredLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
+  const dateFilteredDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+
   const sourceData = useMemo(() => {
     const map: Record<string, number> = {};
-    ENQUIRY_DATA.forEach(e => { map[e.source] = (map[e.source] || 0) + 1; });
+    dateFilteredLeads.forEach(e => { map[e.source] = (map[e.source] || 0) + 1; });
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [ENQUIRY_DATA]);
+  }, [dateFilteredLeads]);
 
   const stageData = useMemo(() => {
     const map: Record<string, number> = {};
-    DEAL_DATA.forEach(d => { map[d.stage] = (map[d.stage] || 0) + 1; });
+    dateFilteredDeals.forEach(d => { map[d.stage] = (map[d.stage] || 0) + 1; });
     return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [DEAL_DATA]);
+  }, [dateFilteredDeals]);
 
   const comparisonData = useMemo(() => {
-    return DEAL_DATA.slice(0, 15).map(d => ({
+    return dateFilteredDeals.slice(0, 15).map(d => ({
       name: d.company.length > 15 ? d.company.slice(0, 15) + '…' : d.company,
       Expected: d.expectedAmount,
       Negotiated: d.negotiatedAmount,
     }));
-  }, [DEAL_DATA]);
+  }, [dateFilteredDeals]);
 
   const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
   const statuses = [...new Set(ENQUIRY_DATA.map(e => e.status))];
