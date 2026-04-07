@@ -162,26 +162,29 @@ export function ContractsView() {
                   >
                     <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-medium truncate text-right pr-1">{yLabel}</div>
                     <div className="flex-1 h-7 bg-muted rounded relative">
-                      <div
-                        className="absolute h-full rounded flex items-center overflow-visible font-medium"
-                        style={{
-                          left: `${leftPct}%`,
-                          width: `${widthPct}%`,
-                          backgroundColor: barColor,
-                          ...(isDashed ? { border: '2px dashed rgba(255,255,255,0.5)', opacity: 0.7 } : {}),
-                        }}
-                      >
-                        {isWide ? (
-                          <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
-                        ) : null}
-                      </div>
-                      {!isWide && (
-                        <span
-                          className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
-                          style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
-                        >
-                          {po.customer}
-                        </span>
+                      {!hasNoBar && (
+                        <>
+                          <div
+                            className="absolute h-full rounded flex items-center overflow-visible font-medium"
+                            style={{
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              backgroundColor: barColor,
+                            }}
+                          >
+                            {isWide ? (
+                              <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
+                            ) : null}
+                          </div>
+                          {!isWide && (
+                            <span
+                              className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
+                              style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
+                            >
+                              {po.customer}
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
                     {hoveredPO === po.poNumber && (
