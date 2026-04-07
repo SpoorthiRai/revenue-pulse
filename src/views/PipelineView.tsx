@@ -241,13 +241,6 @@ export function PipelineView() {
               <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
               <span>{insightLine}</span>
             </div>
-            {/* Change 6: Info note about Cancel vs Cancelled */}
-            <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground px-3 py-1.5">
-              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              <span className="italic" style={{ fontSize: '12px' }}>
-                Note: 'Cancel' (sales stage = Cancel) and 'Cancelled' are tracked as separate stages. Only 'Cancel' is included in the pipeline flow above. 'Cancelled' is a distinct stage and is not counted here.
-              </span>
-            </div>
           </div>
         );
       })()}
