@@ -98,11 +98,11 @@ export function PipelineView() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [dateFilteredDeals]);
 
-  // Change 1: Expected Amount by Company (single bar, no Negotiated)
   const comparisonData = useMemo(() => {
     return dateFilteredDeals.slice(0, 15).map(d => ({
       name: d.company.length > 15 ? d.company.slice(0, 15) + '…' : d.company,
-      'Expected Amount': d.expectedAmount,
+      'Expected': d.expectedAmount,
+      'Negotiated': d.negotiatedAmount,
     }));
   }, [dateFilteredDeals]);
 
