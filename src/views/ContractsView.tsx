@@ -8,7 +8,6 @@ import { formatCurrencyShort, formatCurrency } from '@/lib/formatters';
 import { FileText, DollarSign, Calendar, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
-// Unique colors for each company in timeline
 const TIMELINE_COLORS = [
   '#0D9488', '#3B82F6', '#8B5CF6', '#EF4444', '#F59E0B', '#10B981',
   '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#06B6D4', '#84CC16',
@@ -23,19 +22,18 @@ const CATEGORY_COLORS: Record<string, string> = {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border rounded-lg shadow-lg p-3 text-xs">
-      <p className="font-medium text-foreground mb-1">{label}</p>
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px' }}>
+      <p style={{ fontSize: '12px', fontWeight: 500, color: '#0F172A', marginBottom: '4px' }}>{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} style={{ color: p.color }} className="flex justify-between gap-4">
-          <span>{p.name}:</span>
-          <span className="font-medium">{typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}</span>
+        <p key={i} style={{ color: p.color, fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+          <span style={{ color: '#6B7280' }}>{p.name}:</span>
+          <span style={{ fontWeight: 500 }}>{typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}</span>
         </p>
       ))}
     </div>
   );
 };
 
-// Timeline tooltip for PO bars
 function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties }) {
   const barStart = po._barStart || po.startDate || po.poDate;
   const barEnd = po._barEnd || po.endDate || po.expiryDate;
@@ -43,19 +41,36 @@ function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties })
   const startFormatted = barStart ? new Date(barStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
   const endFormatted = barEnd ? new Date(barEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
   const durationText = hasNoBar ? 'Dates not specified — no timeline available' : (startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified');
-
   const expiryFormatted = po.expiryDate ? new Date(po.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
   return (
-    <div className="bg-card border rounded-lg shadow-lg p-3 text-xs absolute z-50" style={style}>
-      <p className="font-medium text-foreground mb-1">PO: {po.poNumber || '—'}</p>
-      <p className="text-foreground">{po.customer}</p>
-      <p className="text-muted-foreground">{durationText}</p>
-      <p className="text-muted-foreground">Total Value: {formatCurrency(po.totalValue)}</p>
-      <p className="text-muted-foreground">Expiry: {expiryFormatted}</p>
+    <div style={{ ...style, background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px', fontSize: '12px', zIndex: 50 }}>
+      <p style={{ fontWeight: 500, color: '#0F172A', marginBottom: '4px' }}>PO: {po.poNumber || '—'}</p>
+      <p style={{ color: '#374151' }}>{po.customer}</p>
+      <p style={{ color: '#6B7280' }}>{durationText}</p>
+      <p style={{ color: '#6B7280' }}>Total Value: {formatCurrency(po.totalValue)}</p>
+      <p style={{ color: '#6B7280' }}>Expiry: {expiryFormatted}</p>
     </div>
   );
 }
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '12px',
+  border: '1px solid hsl(220 13% 95%)',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  padding: '20px 24px',
+};
+
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 500,
+  letterSpacing: '0.01em',
+  color: '#0F172A',
+  marginBottom: '16px',
+};
+
+const chartGridColor = '#F3F4F6';
 
 export function ContractsView() {
   const { poData: RAW_PO } = useData();
@@ -80,7 +95,6 @@ export function ContractsView() {
     return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [PO_DATA]);
 
-  // Build color map for companies
   const companyColorMap = useMemo(() => {
     const companies = [...new Set(PO_DATA.map(p => p.customer))];
     const map: Record<string, string> = {};
@@ -102,20 +116,20 @@ export function ContractsView() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-4 gap-4">
-        <KPICard title="Active POs" value={String(activePOs.length)} icon={<FileText className="h-5 w-5 text-primary" />} />
-        <KPICard title="Total Contract Value" value={formatCurrencyShort(totalCV)} icon={<DollarSign className="h-5 w-5 text-success" />} />
-        <KPICard title="Avg Monthly Billing" value={formatCurrencyShort(avgMonthly)} icon={<Calendar className="h-5 w-5 text-primary" />} />
-        <KPICard title="Avg Duration" value={`${avgDuration.toFixed(1)} months`} icon={<Clock className="h-5 w-5 text-muted-foreground" />} />
+        <KPICard title="Active POs" value={String(activePOs.length)} icon={<FileText className="h-5 w-5" />} />
+        <KPICard title="Total Contract Value" value={formatCurrencyShort(totalCV)} icon={<DollarSign className="h-5 w-5" />} />
+        <KPICard title="Avg Monthly Billing" value={formatCurrencyShort(avgMonthly)} icon={<Calendar className="h-5 w-5" />} />
+        <KPICard title="Avg Duration" value={`${avgDuration.toFixed(1)} months`} icon={<Clock className="h-5 w-5" />} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Contract Value by Category</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Contract Value by Category</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={categoryData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="name" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis fontSize={11} tick={{ fill: '#9CA3AF' }} tickFormatter={v => formatCurrencyShort(v)} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {categoryData.map((d, i) => <Cell key={i} fill={CATEGORY_COLORS[d.name] || '#64748B'} />)}
@@ -124,15 +138,14 @@ export function ContractsView() {
           </ResponsiveContainer>
         </div>
 
-        {/* Change 4: PO Timeline redesign */}
-        <div className="bg-card rounded-lg border p-5 relative">
-          <h3 className="text-sm font-semibold mb-2">PO Timeline</h3>
-          {/* Sticky X axis at top */}
-          <div className="flex justify-between mb-2 text-[10px] text-muted-foreground">
+        <div style={{ ...cardStyle, position: 'relative' }}>
+          <h3 style={sectionHeadingStyle}>PO Timeline</h3>
+          {/* X axis labels */}
+          <div className="flex justify-between mb-2" style={{ fontSize: '11px', color: '#9CA3AF', borderBottom: '1px solid #E5E7EB', paddingBottom: '8px' }}>
             <span>Apr '25</span><span>Jul '25</span><span>Oct '25</span><span>Jan '26</span><span>Apr '26</span>
           </div>
           <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
-            <div style={{ minHeight: `${PO_DATA.length * 36}px` }} className="space-y-1">
+            <div style={{ minHeight: `${PO_DATA.length * 40}px` }} className="space-y-1">
               {PO_DATA.map((po, idx) => {
                 const barStartDate = po.startDate || po.poDate;
                 const barEndDate = po.endDate || po.expiryDate;
@@ -156,30 +169,34 @@ export function ContractsView() {
                   <div
                     key={`${po.poNumber}-${idx}`}
                     className="flex items-center gap-2 relative"
-                    style={{ minHeight: '32px' }}
+                    style={{ minHeight: '40px' }}
                     onMouseEnter={(e) => { setHoveredPO(po.poNumber); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
                     onMouseLeave={() => setHoveredPO(null)}
                   >
-                    <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-medium truncate text-right pr-1">{yLabel}</div>
-                    <div className="flex-1 h-7 bg-muted rounded relative">
+                    <div className="w-24 shrink-0 font-medium truncate text-right pr-1" style={{ fontSize: '10px', color: '#6B7280' }}>{yLabel}</div>
+                    <div className="flex-1 rounded relative" style={{ height: '28px', backgroundColor: hasNoBar ? '#FAFAFA' : '#F1F5F9' }}>
+                      {hasNoBar && (
+                        <div className="absolute top-1/2 left-0 right-0" style={{ borderTop: '1px dashed #E5E7EB', transform: 'translateY(-50%)' }} />
+                      )}
                       {!hasNoBar && (
                         <>
                           <div
-                            className="absolute h-full rounded flex items-center overflow-visible font-medium"
+                            className="absolute h-full flex items-center overflow-visible font-medium"
                             style={{
                               left: `${leftPct}%`,
                               width: `${widthPct}%`,
                               backgroundColor: barColor,
+                              borderRadius: '4px',
                             }}
                           >
                             {isWide ? (
-                              <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
+                              <span style={{ fontSize: '11px', color: 'white', fontWeight: 500, paddingLeft: '6px' }} className="truncate w-full">{po.customer}</span>
                             ) : null}
                           </div>
                           {!isWide && (
                             <span
-                              className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
-                              style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
+                              className="absolute font-medium whitespace-nowrap"
+                              style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: '#374151' }}
                             >
                               {po.customer}
                             </span>
@@ -198,19 +215,19 @@ export function ContractsView() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border overflow-x-auto">
-        <table className="w-full text-sm table-zebra">
+      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+        <table className="w-full table-zebra">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">PO #</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Customer</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Category</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Total Value</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Monthly</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Terms</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Start</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">End</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
+            <tr>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>PO #</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Customer</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Category</th>
+              <th className="text-right px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Total Value</th>
+              <th className="text-right px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Monthly</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Terms</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Start</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>End</th>
+              <th className="text-left px-4 py-3" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -218,10 +235,10 @@ export function ContractsView() {
               <>
                 <tr
                   key={po.poNumber}
-                  className={`border-b cursor-pointer ${isExpiringSoon(po.endDate) ? 'bg-warning/10' : ''}`}
+                  className={`cursor-pointer ${isExpiringSoon(po.endDate) ? 'bg-warning/10' : ''}`}
                   onClick={() => setExpandedPO(expandedPO === po.poNumber ? null : po.poNumber)}
                 >
-                  <td className="px-4 py-2.5 font-mono text-xs">{po.poNumber}</td>
+                  <td className="px-4 py-2.5 font-mono" style={{ fontSize: '12px' }}>{po.poNumber}</td>
                   <td className="px-4 py-2.5 font-medium">{po.customer}</td>
                   <td className="px-4 py-2.5">{po.serviceCategory}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{formatCurrency(po.totalValue)}</td>
@@ -232,8 +249,8 @@ export function ContractsView() {
                   <td className="px-4 py-2.5"><StatusBadge status={po.status} /></td>
                 </tr>
                 {expandedPO === po.poNumber && (
-                  <tr key={`${po.poNumber}-exp`} className="bg-accent/30">
-                    <td colSpan={9} className="px-8 py-3 text-xs text-muted-foreground">
+                  <tr key={`${po.poNumber}-exp`} style={{ backgroundColor: '#F0FDFA' }}>
+                    <td colSpan={9} className="px-8 py-3" style={{ fontSize: '12px', color: '#6B7280' }}>
                       <strong>Milestones:</strong> {po.milestones} &nbsp;|&nbsp;
                       <strong>Advance:</strong> {po.advancePercent}% &nbsp;|&nbsp;
                       <strong>Duration:</strong> {po.duration} months

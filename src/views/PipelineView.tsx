@@ -14,12 +14,12 @@ import {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border rounded-lg shadow-lg p-3 text-xs">
-      <p className="font-medium text-foreground mb-1">{label}</p>
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px' }}>
+      <p style={{ fontSize: '12px', fontWeight: 500, color: '#0F172A', marginBottom: '4px' }}>{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} style={{ color: p.color }} className="flex justify-between gap-4">
-          <span>{p.name}:</span>
-          <span className="font-medium">{typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}</span>
+        <p key={i} style={{ color: p.color, fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+          <span style={{ color: '#6B7280' }}>{p.name}:</span>
+          <span style={{ fontWeight: 500 }}>{typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}</span>
         </p>
       ))}
     </div>
@@ -28,10 +28,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const STAGE_COLORS: Record<string, string> = { Win: '#10B981', Negotiation: '#F59E0B', Cancel: '#EF4444', Lost: '#9CA3AF' };
 
-// Change 7: Total Deals stages
 const TOTAL_DEALS_STAGES = new Set([
   'Converted', 'Commercial Proposal', 'Negotiation', 'Win', 'Lost', 'Cancel', 'Closed'
 ]);
+
+const cardStyle: React.CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '12px',
+  border: '1px solid hsl(220 13% 95%)',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  padding: '20px 24px',
+};
+
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 500,
+  letterSpacing: '0.01em',
+  color: '#0F172A',
+  marginBottom: '16px',
+};
+
+const chartGridColor = '#F3F4F6';
 
 export function PipelineView() {
   const { enquiryData: RAW_ENQUIRY, dealData: RAW_DEALS } = useData();
@@ -49,7 +66,6 @@ export function PipelineView() {
   const [sortCol, setSortCol] = useState<string>('leadNumber');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
-  // Change 8: filter leads by createdDate, deals by createdDealDate or updatedAt
   const filteredLeads = useMemo(() => {
     let data = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
     if (pillarFilter) data = data.filter(d => d.pillar === pillarFilter);
@@ -65,24 +81,20 @@ export function PipelineView() {
     return data;
   }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir, ENQUIRY_DATA, weekStart, end]);
 
-  // Change 8: Deals filtered by createdDealDate OR updatedAt within range
   const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
   const weekDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
 
-  // Change 10: All Time KPI cards — no date filter
   const allTimeLeadsCount = ENQUIRY_DATA.length;
-  const allTimeTotalDeals = DEAL_DATA.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length; // Change 7
+  const allTimeTotalDeals = DEAL_DATA.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length;
   const allTimeWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
   const allTimeDecided = DEAL_DATA.filter(d => TOTAL_DEALS_STAGES.has(d.stage) && ['Win', 'Lost', 'Cancel', 'Closed'].includes(d.stage));
   const allTimeWinRate = allTimeDecided.length > 0 ? (allTimeWonDeals.length / allTimeDecided.length) * 100 : 0;
   const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
-  // Change 1: use expectedAmount
   const allTimePipelineValue = DEAL_DATA.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.expectedAmount, 0);
   const allTimeHasActivePipeline = DEAL_DATA.some(d => openStages.includes(d.stage));
 
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
 
-  // Date-filtered data for charts
   const dateFilteredLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
   const dateFilteredDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
 
@@ -116,7 +128,6 @@ export function PipelineView() {
     else { setSortCol(col); setSortDir('asc'); }
   };
 
-  // Previous period for pipeline strip
   const diff = end.getTime() - weekStart.getTime();
   const prevStart = new Date(weekStart.getTime() - diff);
   const prevEnd = new Date(weekStart.getTime() - 1);
@@ -141,7 +152,6 @@ export function PipelineView() {
         const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
         const prevClosedDeals = prevDeals.filter(d => d.stage === 'Closed');
 
-        // Change 7: Total Deals uses TOTAL_DEALS_STAGES
         const totalDealsCount = weekDeals.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length;
         const prevTotalDealsCount = prevDeals.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length;
 
@@ -177,8 +187,8 @@ export function PipelineView() {
           : 'All pipeline stages are stable or improving vs prior period.';
 
         return (
-          <div className="bg-card rounded-lg border p-4">
-            <h3 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Deal Pipeline Flow</h3>
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: '9px', fontWeight: 500, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>Deal Pipeline Flow</h3>
             <div className="flex items-stretch">
               {stages.map((stage, i) => {
                 const isInactive = stage.current === 0 && stage.prev === 0;
@@ -192,36 +202,43 @@ export function PipelineView() {
                   <div key={stage.name} className="flex items-stretch flex-1 min-w-0">
                     {i > 0 && (
                       <div className="flex flex-col items-center justify-center px-1 shrink-0">
-                        <span className={`text-lg leading-none ${isInactive && stages[i-1].current === 0 && stages[i-1].prev === 0 ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>→</span>
+                        <span style={{ fontSize: '14px', color: '#CBD5E1', lineHeight: 1 }}>→</span>
                         {convRates[i - 1] && (
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap mt-0.5">
+                          <span style={{ fontSize: '10px', color: '#9CA3AF', whiteSpace: 'nowrap', marginTop: '2px' }}>
                             {convRates[i - 1]}%
                           </span>
                         )}
                       </div>
                     )}
                     <div
-                      className={`flex-1 rounded-md px-3 py-2.5 min-w-0 border ${isInactive ? 'opacity-40 bg-muted/30' : ''}`}
-                      style={{ borderLeftColor: isInactive ? 'hsl(0,0%,70%)' : stage.color, borderLeftWidth: '3px' }}
+                      className={`flex-1 min-w-0 transition-colors duration-150 ${isInactive ? 'opacity-40' : ''}`}
+                      style={{
+                        borderRadius: '8px',
+                        padding: '14px 12px',
+                        borderLeft: `3px solid ${isInactive ? '#94A3B8' : stage.color}`,
+                        backgroundColor: isInactive ? '#F8FAFC' : 'transparent',
+                      }}
+                      onMouseEnter={e => { if (!isInactive) (e.currentTarget as HTMLDivElement).style.backgroundColor = '#F8FAFC'; }}
+                      onMouseLeave={e => { if (!isInactive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
                     >
-                      <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-wide">{stage.name}</p>
+                      <p style={{ fontSize: '9px', color: '#94A3B8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em' }} className="truncate">{stage.name}</p>
                       {isInactive ? (
                         <>
-                          <p className="text-lg font-bold text-muted-foreground leading-tight">—</p>
+                          <p style={{ fontSize: '22px', fontWeight: 600, color: '#94A3B8', lineHeight: 1.2 }}>—</p>
                           <div className="mt-1">
-                            <p className="text-[10px] text-muted-foreground">was 0</p>
-                            <p className="text-[10px] text-muted-foreground">— (0.0%)</p>
+                            <p style={{ fontSize: '11px', color: '#9CA3AF' }}>was 0</p>
+                            <p style={{ fontSize: '10px', color: '#9CA3AF' }}>— (0.0%)</p>
                           </div>
                         </>
                       ) : (
                         <>
-                          <p className="text-lg font-bold text-foreground leading-tight">{stage.current}</p>
+                          <p style={{ fontSize: '22px', fontWeight: 600, color: '#0F172A', lineHeight: 1.2 }}>{stage.current}</p>
                           <div className="mt-1 space-y-0">
-                            <p className="text-[10px] text-muted-foreground">was {stage.prev}</p>
+                            <p style={{ fontSize: '11px', color: '#9CA3AF' }}>was {stage.prev}</p>
                             {change.direction === 'no_prior' ? (
-                              <p className="text-[10px] text-muted-foreground">No prior data</p>
+                              <p style={{ fontSize: '10px', color: '#9CA3AF' }}>No prior data</p>
                             ) : (
-                              <div className={`flex items-center gap-1 text-[10px] font-medium ${deltaColor}`}>
+                              <div className={`flex items-center gap-1 font-medium ${deltaColor}`} style={{ fontSize: '10px' }}>
                                 {change.direction === 'up' && <TrendingUp className="h-2.5 w-2.5" />}
                                 {change.direction === 'down' && <TrendingDown className="h-2.5 w-2.5" />}
                                 {change.direction === 'flat' && <Minus className="h-2.5 w-2.5" />}
@@ -237,56 +254,55 @@ export function PipelineView() {
                 );
               })}
             </div>
-            <div className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2">
-              <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+            <div className="mt-3 flex items-start gap-1.5" style={{ backgroundColor: '#FFFBEB', borderRadius: '6px', padding: '8px 12px', borderLeft: '3px solid #F59E0B', fontSize: '13px', color: '#6B7280' }}>
+              <Lightbulb className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: '#F59E0B' }} />
               <span>{insightLine}</span>
             </div>
           </div>
         );
       })()}
 
-      {/* Change 9 & 10: 4 KPI cards — All Time, replace Converted with Total Deals */}
       <div className="grid grid-cols-4 gap-4">
         <div>
-          <KPICard title="Total Leads" value={String(allTimeLeadsCount)} icon={<Users className="h-5 w-5 text-primary" />} />
-          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+          <KPICard title="Total Leads" value={String(allTimeLeadsCount)} icon={<Users className="h-5 w-5" />} />
+          <p style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', textAlign: 'center' }}>All time</p>
         </div>
         <div>
-          <KPICard title="Total Deals" value={String(allTimeTotalDeals)} icon={<FileText className="h-5 w-5 text-primary" />} />
-          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+          <KPICard title="Total Deals" value={String(allTimeTotalDeals)} icon={<FileText className="h-5 w-5" />} />
+          <p style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', textAlign: 'center' }}>All time</p>
         </div>
         <div>
-          <KPICard title="Win Rate" value={`${allTimeWinRate.toFixed(0)}%`} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
-          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+          <KPICard title="Win Rate" value={`${allTimeWinRate.toFixed(0)}%`} icon={<TrendingUp className="h-5 w-5" />} />
+          <p style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', textAlign: 'center' }}>All time</p>
         </div>
         <div>
-          <KPICard title="Pipeline Value" value={formatCurrencyShort(allTimePipelineValue)} icon={<DollarSign className="h-5 w-5 text-success" />} />
-          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
-          {!allTimeHasActivePipeline && <p className="text-xs text-muted-foreground text-center">No active pipeline</p>}
+          <KPICard title="Pipeline Value" value={formatCurrencyShort(allTimePipelineValue)} icon={<DollarSign className="h-5 w-5" />} />
+          <p style={{ fontSize: '10px', color: '#94A3B8', marginTop: '4px', textAlign: 'center' }}>All time</p>
+          {!allTimeHasActivePipeline && <p style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>No active pipeline</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Leads by Source</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Leads by Source</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={sourceData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis type="number" fontSize={11} />
-              <YAxis type="category" dataKey="name" width={100} fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis type="number" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis type="category" dataKey="name" width={100} fontSize={11} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" fill="#0D9488" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Deal Stages</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Deal Stages</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={stageData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="name" fontSize={11} />
-              <YAxis fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="name" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis fontSize={11} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {stageData.map((d, i) => <Cell key={i} fill={STAGE_COLORS[d.name] || '#64748B'} />)}
@@ -295,13 +311,13 @@ export function PipelineView() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Expected vs Negotiated</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Expected vs Negotiated</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={comparisonData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis type="number" fontSize={10} tickFormatter={(v) => formatCurrencyShort(v)} />
-              <YAxis type="category" dataKey="name" width={100} fontSize={9} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis type="number" fontSize={10} tick={{ fill: '#9CA3AF' }} tickFormatter={(v) => formatCurrencyShort(v)} />
+              <YAxis type="category" dataKey="name" width={100} fontSize={9} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend fontSize={11} />
               <Bar dataKey="Expected" fill="hsl(174,83%,52%)" radius={[0, 2, 2, 0]} />
@@ -311,34 +327,35 @@ export function PipelineView() {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border">
-        <div className="p-4 border-b flex items-center gap-3 flex-wrap">
+      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+        <div className="p-4 flex items-center gap-3 flex-wrap" style={{ borderBottom: '1px solid #F1F5F9' }}>
           <input
             placeholder="Search leads…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="px-3 py-1.5 text-sm border rounded-md bg-background w-48"
+            className="px-3 py-1.5 text-sm rounded-md bg-background w-48"
+            style={{ border: '0.5px solid #D1D5DB', fontSize: '13px' }}
           />
-          <select value={pillarFilter} onChange={e => setPillarFilter(e.target.value)} className="px-3 py-1.5 text-sm border rounded-md bg-background">
+          <select value={pillarFilter} onChange={e => setPillarFilter(e.target.value)} className="px-3 py-1.5 text-sm rounded-md bg-background" style={{ border: '0.5px solid #D1D5DB', fontSize: '13px' }}>
             <option value="">All Pillars</option>
             {pillars.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-1.5 text-sm border rounded-md bg-background">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-1.5 text-sm rounded-md bg-background" style={{ border: '0.5px solid #D1D5DB', fontSize: '13px' }}>
             <option value="">All Statuses</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={assignedFilter} onChange={e => setAssignedFilter(e.target.value)} className="px-3 py-1.5 text-sm border rounded-md bg-background">
+          <select value={assignedFilter} onChange={e => setAssignedFilter(e.target.value)} className="px-3 py-1.5 text-sm rounded-md bg-background" style={{ border: '0.5px solid #D1D5DB', fontSize: '13px' }}>
             <option value="">All Reps</option>
             {assignees.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
         <div className="overflow-x-auto">
           {filteredLeads.length === 0 ? <EmptyState onClear={clearFilters} /> : (
-            <table className="w-full text-sm table-zebra">
+            <table className="w-full table-zebra">
               <thead>
-                <tr className="border-b bg-muted/50">
+                <tr>
                   {['leadNumber', 'company', 'contact', 'pillar', 'subCategory', 'assignedTo', 'source', 'status', 'createdDate'].map(col => (
-                    <th key={col} className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase cursor-pointer hover:text-foreground" onClick={() => toggleSort(col)}>
+                    <th key={col} className="text-left px-4 py-3 cursor-pointer" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }} onClick={() => toggleSort(col)}>
                       <span className="flex items-center gap-1">
                         {col.replace(/([A-Z])/g, ' $1').trim()}
                         {sortCol === col && <ArrowUpDown className="h-3 w-3" />}
@@ -349,8 +366,8 @@ export function PipelineView() {
               </thead>
               <tbody>
                 {filteredLeads.map(lead => (
-                  <tr key={lead.leadNumber} className="border-b">
-                    <td className="px-4 py-2.5 font-mono text-xs">{lead.leadNumber}</td>
+                  <tr key={lead.leadNumber}>
+                    <td className="px-4 py-2.5 font-mono" style={{ fontSize: '12px' }}>{lead.leadNumber}</td>
                     <td className="px-4 py-2.5 font-medium">{lead.company}</td>
                     <td className="px-4 py-2.5">{lead.contact}</td>
                     <td className="px-4 py-2.5">{lead.pillar}</td>
@@ -358,7 +375,7 @@ export function PipelineView() {
                     <td className="px-4 py-2.5">{lead.assignedTo}</td>
                     <td className="px-4 py-2.5">{lead.source}</td>
                     <td className="px-4 py-2.5"><StatusBadge status={lead.status} /></td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{lead.createdDate}</td>
+                    <td className="px-4 py-2.5" style={{ color: '#6B7280' }}>{lead.createdDate}</td>
                   </tr>
                 ))}
               </tbody>
