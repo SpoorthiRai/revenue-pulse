@@ -16,12 +16,12 @@ const COLORS = ['hsl(174,83%,32%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border rounded-lg shadow-lg p-3 text-xs">
-      <p className="font-medium text-foreground mb-1">{label}</p>
+    <div style={{ background: 'white', border: '1px solid #E5E7EB', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: '10px 14px' }}>
+      <p style={{ fontSize: '12px', fontWeight: 500, color: '#0F172A', marginBottom: '4px' }}>{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} style={{ color: p.color }} className="flex justify-between gap-4">
-          <span>{p.name}:</span>
-          <span className="font-medium">{typeof p.value === 'number' && p.value > 1000 ? formatCurrency(p.value) : p.value}</span>
+        <p key={i} style={{ color: p.color, fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '16px' }}>
+          <span style={{ color: '#6B7280' }}>{p.name}:</span>
+          <span style={{ fontWeight: 500 }}>{typeof p.value === 'number' && p.value > 1000 ? formatCurrency(p.value) : p.value}</span>
         </p>
       ))}
     </div>
@@ -30,7 +30,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: number; direction: string }; suffix?: string }) {
   if (change.direction === 'no_prior') {
-    return <span className="text-xs text-muted-foreground">No prior data</span>;
+    return <span style={{ fontSize: '11px', color: '#6B7280' }}>No prior data</span>;
   }
   const isUp = change.direction === 'up';
   const isFlat = change.direction === 'flat';
@@ -48,18 +48,33 @@ const TOTAL_DEALS_STAGES = new Set([
   'Converted', 'Commercial Proposal', 'Negotiation', 'Win', 'Lost', 'Cancel', 'Closed'
 ]);
 
+// Shared card style
+const cardStyle: React.CSSProperties = {
+  backgroundColor: 'white',
+  borderRadius: '12px',
+  border: '1px solid hsl(220 13% 95%)',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  padding: '20px 24px',
+};
+
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 500,
+  letterSpacing: '0.01em',
+  color: '#0F172A',
+  marginBottom: '16px',
+};
+
 export function ExecutiveSummaryView() {
   const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
   const { selectedPillar, togglePillar } = usePillarFilter();
   const end = weekEnd;
 
-  // Previous period
   const diff = end.getTime() - weekStart.getTime();
   const prevStart = new Date(weekStart.getTime() - diff);
   const prevEnd = new Date(weekStart.getTime() - 1);
 
-  // Apply pillar filter to raw data
   const filteredEnquiry = selectedPillar ? ENQUIRY_DATA.filter(e => e.pillar === selectedPillar) : ENQUIRY_DATA;
   const filteredDeals = selectedPillar ? DEAL_DATA.filter(d => d.pillar === selectedPillar) : DEAL_DATA;
 
@@ -71,15 +86,12 @@ export function ExecutiveSummaryView() {
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
 
-  // ========== SECTION 1: KPIs ==========
   const revenueWon = wonDeals.reduce((s, d) => s + d.expectedAmount, 0);
   const prevRevenueWon = prevWonDeals.reduce((s, d) => s + d.expectedAmount, 0);
 
   const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
-  const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage))
-    .reduce((s, d) => s + d.expectedAmount, 0);
-  const prevPipelineValue = prevDeals.filter(d => openStages.includes(d.stage))
-    .reduce((s, d) => s + d.expectedAmount, 0);
+  const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.expectedAmount, 0);
+  const prevPipelineValue = prevDeals.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.expectedAmount, 0);
   const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
 
   const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel', 'Closed'].includes(d.stage));
@@ -124,7 +136,6 @@ export function ExecutiveSummaryView() {
     { title: 'Deals Closed', value: String(dealsClosed), prevValue: `was ${prevDealsClosed}`, change: percentChange(dealsClosed, prevDealsClosed), icon: <Target className="h-4 w-4" /> },
   ];
 
-  // All Time Benchmark KPIs — always use full unfiltered data
   const allTimeWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
   const allTimeRevenue = allTimeWonDeals.reduce((s, d) => s + d.expectedAmount, 0);
   const allTimeAvgDealSize = allTimeWonDeals.length > 0 ? allTimeRevenue / allTimeWonDeals.length : 0;
@@ -148,14 +159,12 @@ export function ExecutiveSummaryView() {
     { title: 'Lead Conversion', value: `${allTimeLeadConversion.toFixed(0)}%`, icon: <Activity className="h-4 w-4" /> },
   ];
 
-  // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000;
   const revenueClosed = filteredDeals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.expectedAmount, 0);
   const weightedPipeline = filteredDeals.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
 
-  // ========== SECTION 3: Sales Funnel ==========
   const funnelLeadsCount = weekAllRecords.length;
   const funnelDealsCount = weekAllRecords.filter(e => e.recordType === 'Deal').length;
   const funnelWinCount = weekDeals.filter(d => d.stage === 'Win').length;
@@ -176,7 +185,6 @@ export function ExecutiveSummaryView() {
   const biggestLeakage = funnelConversions.length > 0 ? funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]) : null;
   const maxFunnelCount = Math.max(...simpleFunnel.map(s => s.count), 1);
 
-  // ========== SECTION 4: Pipeline Health ==========
   const pipelineByStage = useMemo(() => {
     const stages = ['Negotiation', 'Commercial Proposal', 'Closed'];
     return stages.map(stage => {
@@ -189,7 +197,6 @@ export function ExecutiveSummaryView() {
     .reduce((s, d) => s + d.expectedAmount, 0);
   const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
 
-  // ========== SECTION 5: Service Pillar (UNFILTERED for donut charts) ==========
   const allWeekDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
   const allWonDeals = allWeekDeals.filter(d => d.stage === 'Win');
 
@@ -220,7 +227,6 @@ export function ExecutiveSummaryView() {
   const totalDealsWon = allWonDeals.length;
   const totalRevenueFiltered = donutRevenueData.reduce((s, d) => s + d.value, 0);
 
-  // Keep servicePillarData for insights
   const servicePillarData = useMemo(() => {
     const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar))];
     return pillars.map(pillar => {
@@ -234,7 +240,6 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.leads > 0 || s.dealsWon > 0).sort((a, b) => b.revenue - a.revenue);
   }, [weekLeads, wonDeals, weekDeals, ENQUIRY_DATA]);
 
-  // ========== SECTION 6: Trend Over Time ==========
   const weeklyActivity = useMemo(() => {
     const weeks: { week: string; leads: number; converted: number; deals: number; won: number; revenue: number }[] = [];
     const startMon = getMonday(weekStart);
@@ -262,7 +267,6 @@ export function ExecutiveSummaryView() {
     return weeks;
   }, [weekStart, end, filteredEnquiry, filteredDeals]);
 
-  // ========== SECTION 8: Bottleneck ==========
   const stuckDeals = useMemo(() => {
     const today = new Date('2025-10-07');
     return filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
@@ -277,7 +281,6 @@ export function ExecutiveSummaryView() {
     return Object.entries(map).map(([stage, count]) => ({ stage, count }));
   }, [stuckDeals]);
 
-  // ========== SECTION 9: Insights ==========
   const { positiveInsights, attentionInsights } = useMemo(() => {
     const positive: string[] = [];
     const attention: string[] = [];
@@ -325,7 +328,6 @@ export function ExecutiveSummaryView() {
     return { positiveInsights: positive.slice(0, 4), attentionInsights: attention.slice(0, 4) };
   }, [revenueWon, prevRevenueWon, leadConversionRate, prevLeadConversionRate, weekLeads, prevLeads, winRate, prevWinRate, weekDeals, prevDeals, servicePillarData, pipelineCoverage, biggestLeakage, targetAchievement, salesCycleDays, prevSalesCycleDays]);
 
-  // ========== Trend toggle state ==========
   const [trendMode, setTrendMode] = useState<'leads-deals' | 'deals-revenue' | 'win-loss'>('leads-deals');
   const trendTitle = trendMode === 'leads-deals' ? 'Lead & Deal Volume Over Time' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue Over Time' : 'Wins vs Losses Over Time';
 
@@ -345,87 +347,89 @@ export function ExecutiveSummaryView() {
     });
   }, [weeklyActivity, filteredDeals, weekStart]);
 
+  const chartGridColor = '#F3F4F6';
+
   return (
     <div className="space-y-6">
       {/* Period comparison label */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="bg-muted px-2 py-1 rounded">
+      <div className="flex items-center gap-2 text-xs" style={{ color: '#6B7280' }}>
+        <span style={{ backgroundColor: '#F1F5F9', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>
           {weekStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – {end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
         <span>compared to previous equal period</span>
       </div>
 
       {/* KEY INSIGHTS */}
-      <div className="bg-card rounded-lg border">
+      <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
         <div className="grid grid-cols-2 divide-x">
-          <div className="p-5 border-l-4 border-l-success rounded-l-lg">
+          <div style={{ padding: '16px 20px', backgroundColor: '#F0FDF4', borderLeft: '3px solid #22C55E', borderRadius: '12px 0 0 12px' }}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-success" />
-              <h3 className="text-sm font-semibold text-foreground">Effective Areas</h3>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22C55E', display: 'inline-block' }} />
+              <h3 style={{ fontSize: '13px', fontWeight: 500, color: '#0F172A' }}>Effective Areas</h3>
             </div>
             {positiveInsights.length > 0 ? (
               <ul className="space-y-2">
                 {positiveInsights.map((insight, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <span className="text-success mt-0.5 shrink-0">•</span>
+                  <li key={i} className="flex items-start gap-2" style={{ fontSize: '13px', lineHeight: 1.6, color: '#374151' }}>
+                    <span style={{ color: '#22C55E', marginTop: '2px', flexShrink: 0 }}>●</span>
                     {insight}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground italic">No highlights this period</p>
+              <p style={{ fontSize: '13px', color: '#6B7280', fontStyle: 'italic' }}>No highlights this period</p>
             )}
           </div>
-          <div className="p-5 border-l-4 border-l-destructive">
+          <div style={{ padding: '16px 20px', backgroundColor: '#FFF7F7', borderLeft: '3px solid #EF4444' }}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
-              <h3 className="text-sm font-semibold text-foreground">Needs Attention</h3>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block' }} />
+              <h3 style={{ fontSize: '13px', fontWeight: 500, color: '#0F172A' }}>Needs Attention</h3>
             </div>
             {attentionInsights.length > 0 ? (
               <ul className="space-y-2">
                 {attentionInsights.map((insight, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-foreground">
-                    <span className="text-destructive mt-0.5 shrink-0">•</span>
+                  <li key={i} className="flex items-start gap-2" style={{ fontSize: '13px', lineHeight: 1.6, color: '#374151' }}>
+                    <span style={{ color: '#EF4444', marginTop: '2px', flexShrink: 0 }}>●</span>
                     {insight}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-success italic">All clear this period</p>
+              <p className="text-success" style={{ fontSize: '13px', fontStyle: 'italic' }}>All clear this period</p>
             )}
           </div>
         </div>
       </div>
 
       {/* SECTION 1: Executive KPI Cards */}
-      <div className="flex gap-3">
-        <div className="grid grid-cols-4 gap-3 flex-1">
+      <div className="flex gap-4">
+        <div className="grid grid-cols-4 gap-4 flex-1">
           {filteredKpis.map(kpi => (
-            <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+            <div key={kpi.title} className="kpi-card">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
-                <span className="text-muted-foreground">{kpi.icon}</span>
+                <span style={{ fontSize: '11px', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>{kpi.title}</span>
+                <span style={{ color: '#D1D5DB' }}>{kpi.icon}</span>
               </div>
-              <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+              <p style={{ fontSize: '28px', fontWeight: 600, color: '#0F172A' }}>{kpi.value}</p>
               <div className="mt-2 space-y-0.5">
                 {kpi.change && <TrendBadge change={kpi.change} />}
-                <p className="text-xs text-muted-foreground">{kpi.prevValue}</p>
+                <p style={{ fontSize: '11px', color: '#9CA3AF' }}>{kpi.prevValue}</p>
               </div>
             </div>
           ))}
         </div>
 
         {/* All Time Benchmark KPIs */}
-        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 flex-1">
-          <p className="text-[11px] text-muted-foreground mb-2">All Time Benchmarks · not affected by filters</p>
+        <div style={{ borderRadius: '12px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', padding: '12px', flex: 1 }}>
+          <p style={{ fontSize: '10px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>All Time Benchmarks · not affected by filters</p>
           <div className="grid grid-cols-3 gap-3">
             {benchmarkKpis.map(kpi => (
-              <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
+              <div key={kpi.title} className="kpi-card">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-muted-foreground font-medium">{kpi.title}</span>
-                  <span className="text-muted-foreground">{kpi.icon}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280' }}>{kpi.title}</span>
+                  <span style={{ color: '#D1D5DB' }}>{kpi.icon}</span>
                 </div>
-                <p className="text-xl font-bold text-foreground">{kpi.value}</p>
+                <p style={{ fontSize: '28px', fontWeight: 600, color: '#0F172A' }}>{kpi.value}</p>
               </div>
             ))}
           </div>
@@ -434,35 +438,36 @@ export function ExecutiveSummaryView() {
 
       <div className="grid grid-cols-2 gap-4">
         {/* SECTION 3: Sales Funnel */}
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Sales Funnel Conversion</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Sales Funnel Conversion</h3>
           <div className="space-y-4">
             {simpleFunnel.map((stage, i) => {
               const widthPct = maxFunnelCount > 0 ? (stage.count / maxFunnelCount) * 100 : 0;
               const conversion = i > 0 ? funnelConversions[i - 1] : null;
               return (
                 <div key={stage.name}>
-                  <div className="flex items-center justify-between text-xs mb-1.5">
+                  <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground text-sm">{stage.name}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>{stage.name}</span>
                       {conversion && (
-                        <span className="text-muted-foreground">
+                        <span style={{ fontSize: '11px', color: '#9CA3AF', fontStyle: 'italic' }}>
                           {conversion.rate.toFixed(0)}% from {conversion.from}
                         </span>
                       )}
                     </div>
-                    <span className="font-bold text-foreground text-sm">{stage.count}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>{stage.count}</span>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-7 overflow-hidden">
+                  <div className="w-full rounded overflow-hidden" style={{ backgroundColor: '#F3F4F6', height: '24px', borderRadius: '4px' }}>
                     <div
-                      className="h-full rounded-full transition-all flex items-center justify-end pr-3"
+                      className="h-full flex items-center justify-end pr-3 transition-all"
                       style={{
                         width: `${Math.max(widthPct, 8)}%`,
                         backgroundColor: stage.color,
+                        borderRadius: '4px',
                       }}
                     >
                       {widthPct > 15 && (
-                        <span className="text-xs font-bold text-white">{stage.count}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 500, color: 'white' }}>{stage.count}</span>
                       )}
                     </div>
                   </div>
@@ -471,48 +476,48 @@ export function ExecutiveSummaryView() {
             })}
           </div>
           {biggestLeakage && biggestLeakage.drop > 10 && (
-            <div className="mt-4 bg-destructive/10 rounded px-3 py-2 text-xs text-destructive flex items-center gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" />
+            <div className="mt-4 flex items-center gap-1.5" style={{ backgroundColor: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', color: '#92400E' }}>
+              <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#F97316' }} />
               Biggest drop occurs between {biggestLeakage.from} → {biggestLeakage.to} stage ({biggestLeakage.drop.toFixed(0)}% drop)
             </div>
           )}
         </div>
 
         {/* SECTION 4: Pipeline Health */}
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Pipeline Health</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Pipeline Health</h3>
           {pipelineByStage.length > 0 ? (
             <table className="w-full text-sm mb-4">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left text-xs font-medium text-muted-foreground pb-2">Stage</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground pb-2">Deals</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground pb-2">Value</th>
+                <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                  <th style={{ textAlign: 'left', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280', paddingBottom: '8px' }}>Stage</th>
+                  <th style={{ textAlign: 'center', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280', paddingBottom: '8px' }}>Deals</th>
+                  <th style={{ textAlign: 'right', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6B7280', paddingBottom: '8px' }}>Value</th>
                 </tr>
               </thead>
               <tbody>
                 {pipelineByStage.map(s => (
                   <tr key={s.stage} className="border-b last:border-0">
-                    <td className="py-2 font-medium">{s.stage}</td>
-                    <td className="py-2 text-center">{s.deals}</td>
-                    <td className="py-2 text-right font-mono">{formatCurrencyShort(s.value)}</td>
+                    <td className="py-2 font-medium" style={{ fontSize: '13px', color: '#374151' }}>{s.stage}</td>
+                    <td className="py-2 text-center" style={{ fontSize: '13px', color: '#374151' }}>{s.deals}</td>
+                    <td className="py-2 text-right font-mono" style={{ fontSize: '13px', color: '#374151' }}>{formatCurrencyShort(s.value)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <p className="text-xs text-muted-foreground mb-4">No active pipeline deals in selected period.</p>
+            <p style={{ fontSize: '13px', color: '#6B7280' }} className="mb-4">No active pipeline deals in selected period.</p>
           )}
 
           {stuckDeals.length > 0 && (
             <div className="mt-4">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground mb-2">
+              <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: '13px', fontWeight: 500, color: '#0F172A' }}>
                 <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                 Deals Requiring Attention
               </div>
               <div className="space-y-1.5">
                 {stuckByStage.map(s => (
-                  <div key={s.stage} className="flex items-center justify-between text-xs bg-warning/10 rounded px-3 py-1.5">
+                  <div key={s.stage} className="flex items-center justify-between bg-warning/10 rounded px-3 py-1.5" style={{ fontSize: '12px' }}>
                     <span className="font-medium">{s.stage}</span>
                     <span className="font-bold text-warning">{s.count} deal{s.count > 1 ? 's' : ''}</span>
                   </div>
@@ -525,9 +530,8 @@ export function ExecutiveSummaryView() {
 
       {/* SECTION 5: Service Pillar — Donut Charts */}
       <div className="grid grid-cols-2 gap-4">
-        {/* LEFT: Deals by Service Pillar */}
-        <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-2">Deals by Service Pillar</h3>
+        <div style={cardStyle}>
+          <h3 style={sectionHeadingStyle}>Deals by Service Pillar</h3>
           {donutDealData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={220}>
@@ -536,10 +540,11 @@ export function ExecutiveSummaryView() {
                     data={donutDealData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
+                    innerRadius={50}
+                    outerRadius={88}
                     dataKey="value"
                     stroke="none"
+                    strokeWidth={2}
                     onClick={(_, idx) => togglePillar(donutDealData[idx].name)}
                     className="cursor-pointer outline-none"
                   >
@@ -553,8 +558,8 @@ export function ExecutiveSummaryView() {
                       />
                     ))}
                   </Pie>
-                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">{totalDealsWon}</text>
-                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Deals Won</text>
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '24px', fontWeight: 600, fill: '#0F172A' }}>{totalDealsWon}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '11px', fill: '#6B7280' }}>Deals Won</text>
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-2 space-y-1.5">
@@ -563,35 +568,40 @@ export function ExecutiveSummaryView() {
                   return (
                     <div
                       key={d.name}
-                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      className={`flex items-center justify-between cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : ''}`}
                       onClick={() => togglePillar(d.name)}
+                      style={{ fontSize: '13px' }}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
-                        <span className="font-medium text-foreground">{d.name}</span>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: d.color, flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500, color: '#374151' }}>{d.name}</span>
                       </div>
-                      <span className="text-muted-foreground">{d.value} deals · {pct}%</span>
+                      <span style={{ color: '#6B7280' }}>{d.value} deals · {pct}%</span>
                     </div>
                   );
                 })}
               </div>
             </>
           ) : (
-            <p className="text-xs text-muted-foreground">No deal data for selected period.</p>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>No deal data for selected period.</p>
           )}
         </div>
 
-        {/* RIGHT: Revenue by Service Pillar */}
-        <div className="bg-card rounded-lg border p-5">
+        <div style={cardStyle}>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold">Revenue by Service Pillar</h3>
+            <h3 style={{ ...sectionHeadingStyle, marginBottom: 0 }}>Revenue by Service Pillar</h3>
           </div>
-          <div className="flex rounded-lg border overflow-hidden mb-3">
+          <div className="flex overflow-hidden mb-3" style={{ borderRadius: '6px', border: '0.5px solid #D1D5DB' }}>
             {(['Win', 'Closed', 'Both'] as const).map(opt => (
               <button
                 key={opt}
                 onClick={() => setRevenueDonutFilter(opt)}
-                className={`px-3 py-1 text-xs font-medium transition-colors flex-1 ${revenueDonutFilter === opt ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                className="flex-1 text-xs font-medium transition-colors"
+                style={{
+                  padding: '6px 14px',
+                  backgroundColor: revenueDonutFilter === opt ? '#0F172A' : 'transparent',
+                  color: revenueDonutFilter === opt ? '#FFFFFF' : '#6B7280',
+                }}
               >
                 {opt}
               </button>
@@ -605,10 +615,11 @@ export function ExecutiveSummaryView() {
                     data={donutRevenueData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
+                    innerRadius={50}
+                    outerRadius={88}
                     dataKey="value"
                     stroke="none"
+                    strokeWidth={2}
                     onClick={(_, idx) => togglePillar(donutRevenueData[idx].name)}
                     className="cursor-pointer outline-none"
                   >
@@ -622,8 +633,8 @@ export function ExecutiveSummaryView() {
                       />
                     ))}
                   </Pie>
-                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-lg font-bold">{formatCurrencyShort(totalRevenueFiltered)}</text>
-                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Total Revenue</text>
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '18px', fontWeight: 600, fill: '#0F172A' }}>{formatCurrencyShort(totalRevenueFiltered)}</text>
+                  <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '11px', fill: '#6B7280' }}>Total Revenue</text>
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-2 space-y-1.5">
@@ -632,30 +643,31 @@ export function ExecutiveSummaryView() {
                   return (
                     <div
                       key={d.name}
-                      className={`flex items-center justify-between text-xs cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : 'hover:bg-muted/50'}`}
+                      className={`flex items-center justify-between cursor-pointer rounded px-2 py-1 transition-opacity ${selectedPillar && selectedPillar !== d.name ? 'opacity-30' : ''}`}
                       onClick={() => togglePillar(d.name)}
+                      style={{ fontSize: '13px' }}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
-                        <span className="font-medium text-foreground">{d.name}</span>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: d.color, flexShrink: 0 }} />
+                        <span style={{ fontWeight: 500, color: '#374151' }}>{d.name}</span>
                       </div>
-                      <span className="text-muted-foreground">{formatCurrencyShort(d.value)} · {pct}%</span>
+                      <span style={{ color: '#6B7280' }}>{formatCurrencyShort(d.value)} · {pct}%</span>
                     </div>
                   );
                 })}
               </div>
             </>
           ) : (
-            <p className="text-xs text-muted-foreground">No revenue data for selected period.</p>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>No revenue data for selected period.</p>
           )}
         </div>
       </div>
 
       {/* SECTION 6: Trend Over Time with Toggle */}
-      <div className="bg-card rounded-lg border p-5">
+      <div style={cardStyle}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold">{trendTitle}</h3>
-          <div className="flex rounded-lg border overflow-hidden">
+          <h3 style={{ ...sectionHeadingStyle, marginBottom: 0 }}>{trendTitle}</h3>
+          <div className="flex overflow-hidden" style={{ borderRadius: '6px', border: '0.5px solid #D1D5DB' }}>
             {([
               { key: 'leads-deals', label: 'Leads & Deals' },
               { key: 'deals-revenue', label: 'Deals & Revenue' },
@@ -664,7 +676,12 @@ export function ExecutiveSummaryView() {
               <button
                 key={opt.key}
                 onClick={() => setTrendMode(opt.key)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${trendMode === opt.key ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                className="text-xs font-medium transition-colors"
+                style={{
+                  padding: '6px 14px',
+                  backgroundColor: trendMode === opt.key ? '#0F172A' : 'transparent',
+                  color: trendMode === opt.key ? '#FFFFFF' : '#6B7280',
+                }}
               >
                 {opt.label}
               </button>
@@ -674,9 +691,9 @@ export function ExecutiveSummaryView() {
         <ResponsiveContainer width="100%" height={260}>
           {trendMode === 'win-loss' ? (
             <ComposedChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} />
-              <YAxis fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="week" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis fontSize={11} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               <Area type="monotone" dataKey="won" name="Won" fill="hsl(160,84%,39%)" fillOpacity={0.15} stroke="none" />
@@ -686,10 +703,10 @@ export function ExecutiveSummaryView() {
             </ComposedChart>
           ) : (
             <LineChart data={weeklyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} />
-              <YAxis yAxisId="left" fontSize={11} />
-              {trendMode === 'deals-revenue' && <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />}
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="week" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis yAxisId="left" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              {trendMode === 'deals-revenue' && <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: '#9CA3AF' }} tickFormatter={v => formatCurrencyShort(v)} />}
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               {trendMode === 'leads-deals' && (
@@ -708,18 +725,18 @@ export function ExecutiveSummaryView() {
           )}
         </ResponsiveContainer>
 
-        <div className="border-t my-4" />
+        <div style={{ borderTop: '1px solid #F3F4F6', margin: '16px 0' }} />
 
-        <h4 className="text-xs font-semibold text-muted-foreground mb-3">
+        <h4 style={{ fontSize: '11px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9CA3AF', marginBottom: '12px' }}>
           {trendMode === 'leads-deals' ? 'Lead & Deal Volume — Bar View' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue — Bar View' : 'Wins vs Losses — Bar View'}
         </h4>
         <ResponsiveContainer width="100%" height={260}>
           {trendMode === 'win-loss' ? (
             <ComposedChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} />
-              <YAxis yAxisId="left" fontSize={11} />
-              <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => `${v}%`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="week" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis yAxisId="left" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: '#9CA3AF' }} tickFormatter={v => `${v}%`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               <Bar yAxisId="left" dataKey="won" name="Won" fill="hsl(160,84%,39%)" radius={[3, 3, 0, 0]} />
@@ -728,10 +745,10 @@ export function ExecutiveSummaryView() {
             </ComposedChart>
           ) : trendMode === 'deals-revenue' ? (
             <BarChart data={weeklyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} />
-              <YAxis yAxisId="left" fontSize={11} />
-              <YAxis yAxisId="right" orientation="right" fontSize={11} tickFormatter={v => formatCurrencyShort(v)} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="week" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis yAxisId="left" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis yAxisId="right" orientation="right" fontSize={11} tick={{ fill: '#9CA3AF' }} tickFormatter={v => formatCurrencyShort(v)} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               <Bar yAxisId="left" dataKey="deals" name="Total Deals" fill="hsl(217,91%,60%)" radius={[3, 3, 0, 0]} />
@@ -739,9 +756,9 @@ export function ExecutiveSummaryView() {
             </BarChart>
           ) : (
             <BarChart data={weeklyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
-              <XAxis dataKey="week" fontSize={11} />
-              <YAxis fontSize={11} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="week" fontSize={11} tick={{ fill: '#9CA3AF' }} />
+              <YAxis fontSize={11} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
               <Bar dataKey="leads" name="Leads" fill="hsl(174,83%,32%)" radius={[3, 3, 0, 0]} />
