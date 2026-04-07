@@ -6,7 +6,7 @@ import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange } from '@/lib/formatters';
-import { Users, FileText, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus, Info } from 'lucide-react';
+import { Users, FileText, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend
 } from 'recharts';
