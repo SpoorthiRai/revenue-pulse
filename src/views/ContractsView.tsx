@@ -39,9 +39,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties }) {
   const barStart = po._barStart || po.startDate || po.poDate;
   const barEnd = po._barEnd || po.endDate || po.expiryDate;
+  const hasNoBar = po._hasNoBar;
   const startFormatted = barStart ? new Date(barStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
   const endFormatted = barEnd ? new Date(barEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
-  const durationText = startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified';
+  const durationText = hasNoBar ? 'Dates not specified — no timeline available' : (startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified');
 
   const expiryFormatted = po.expiryDate ? new Date(po.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -135,22 +136,21 @@ export function ContractsView() {
               {PO_DATA.map((po, idx) => {
                 const barStartDate = po.startDate || po.poDate;
                 const barEndDate = po.endDate || po.expiryDate;
-                const hasEnd = !!barEndDate;
+                const hasNoBar = !barStartDate || !barEndDate;
 
                 const startMs = barStartDate ? new Date(barStartDate).getTime() : timelineStart.getTime();
-                let endMs = hasEnd ? new Date(barEndDate).getTime() : startMs + 30 * 86400000;
-                const isDashed = !hasEnd;
+                let endMs = barEndDate ? new Date(barEndDate).getTime() : startMs;
 
                 const start = Math.max(0, (startMs - timelineStart.getTime()) / 86400000);
                 const dur = Math.max(1, (endMs - startMs) / 86400000);
                 const leftPct = (start / totalDays) * 100;
                 const widthPct = Math.max(2, (dur / totalDays) * 100);
                 const barColor = companyColorMap[po.customer] || '#64748B';
-                const isWide = widthPct > 15;
+                const isWide = !hasNoBar && widthPct > 15;
 
                 const yLabel = po.poNumber && po.poNumber !== '-' && !po.poNumber.startsWith('PO-') ? po.poNumber : po.customer;
 
-                const enrichedPo = { ...po, _barStart: barStartDate, _barEnd: hasEnd ? barEndDate : null };
+                const enrichedPo = { ...po, _barStart: barStartDate, _barEnd: barEndDate, _hasNoBar: hasNoBar };
 
                 return (
                   <div
@@ -162,26 +162,29 @@ export function ContractsView() {
                   >
                     <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-medium truncate text-right pr-1">{yLabel}</div>
                     <div className="flex-1 h-7 bg-muted rounded relative">
-                      <div
-                        className="absolute h-full rounded flex items-center overflow-visible font-medium"
-                        style={{
-                          left: `${leftPct}%`,
-                          width: `${widthPct}%`,
-                          backgroundColor: barColor,
-                          ...(isDashed ? { border: '2px dashed rgba(255,255,255,0.5)', opacity: 0.7 } : {}),
-                        }}
-                      >
-                        {isWide ? (
-                          <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
-                        ) : null}
-                      </div>
-                      {!isWide && (
-                        <span
-                          className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
-                          style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
-                        >
-                          {po.customer}
-                        </span>
+                      {!hasNoBar && (
+                        <>
+                          <div
+                            className="absolute h-full rounded flex items-center overflow-visible font-medium"
+                            style={{
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              backgroundColor: barColor,
+                            }}
+                          >
+                            {isWide ? (
+                              <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
+                            ) : null}
+                          </div>
+                          {!isWide && (
+                            <span
+                              className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
+                              style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
+                            >
+                              {po.customer}
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
                     {hoveredPO === po.poNumber && (
