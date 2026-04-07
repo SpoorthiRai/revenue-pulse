@@ -11,9 +11,12 @@ export interface Enquiry {
   subCategory: string;
   assignedTo: string;
   source: string;
-  status: string;
+  status: string;       // salesStage value
+  recordType: string;   // original "Status" column: "Lead" or "Deal"
   comments: string;
-  createdDate: string;
+  createdDate: string;   // Created Lead At for leads, Created Deal Date for deals
+  updatedAt: string;     // Updated At
+  closeDate: string;     // Expected Close Date
 }
 
 export interface Deal {
@@ -24,6 +27,8 @@ export interface Deal {
   expectedAmount: number;
   negotiatedAmount: number;
   closeDate: string;
+  createdDealDate: string;
+  updatedAt: string;
   stage: string;
   assignedTo: string;
   comments: string;
@@ -40,6 +45,7 @@ export interface PO {
   poDate: string;
   startDate: string;
   endDate: string;
+  expiryDate: string;
   duration: number;
   quantity: number;
   totalValue: number;
@@ -110,7 +116,6 @@ function parseNumber(val: any): number {
   return 0;
 }
 
-// ========== Lead stages vs Deal stages ==========
 const LEAD_STAGES = new Set([
   'Lead Generation', 'Lead Qualification', 'First Contact',
   'Discovery Meeting', 'Approach or Demo', 'Converted',
@@ -145,12 +150,13 @@ function parseLeadDealSheet(ws: XLSX.WorkSheet): { enquiries: Enquiry[]; deals: 
     const createdLeadDate = safeDateString(row['Created Lead At']);
     const createdDealDate = safeDateString(row['Created Deal Date']);
     const closeDate = safeDateString(row['Expected Close Date']);
+    const updatedAt = safeDateString(row['Updated At']);
 
-    // Determine if this row is a lead or deal
-    const isLead = recordType === 'Lead' || LEAD_STAGES.has(salesStage);
     const isDeal = recordType === 'Deal' || DEAL_STAGES.has(salesStage);
 
-    // Always add to enquiryData (all rows are leads at some point)
+    // Use createdDealDate for deals, createdLeadDate for leads (Change 8)
+    const primaryDate = isDeal && createdDealDate ? createdDealDate : createdLeadDate;
+
     enquiries.push({
       leadNumber,
       leadName: String(row['Lead Name'] || ''),
@@ -160,13 +166,14 @@ function parseLeadDealSheet(ws: XLSX.WorkSheet): { enquiries: Enquiry[]; deals: 
       subCategory,
       assignedTo,
       source,
-      // Use salesStage as status so "Converted" check works
       status: salesStage || recordType,
+      recordType,
       comments,
-      createdDate: createdLeadDate,
+      createdDate: primaryDate,
+      updatedAt,
+      closeDate,
     });
 
-    // Add to dealData if it's a deal
     if (isDeal) {
       deals.push({
         dealId: leadNumber,
@@ -175,7 +182,9 @@ function parseLeadDealSheet(ws: XLSX.WorkSheet): { enquiries: Enquiry[]; deals: 
         pillar,
         expectedAmount,
         negotiatedAmount,
-        closeDate: closeDate || createdDealDate,
+        closeDate,
+        createdDealDate,
+        updatedAt,
         stage: salesStage,
         assignedTo,
         comments,
@@ -221,6 +230,7 @@ function parsePOWorkflowSheet(ws: XLSX.WorkSheet): PO[] {
       poDate: poDate === '-' ? '' : safeDateString(poDate),
       startDate,
       endDate,
+      expiryDate: expiry,
       duration: 0,
       quantity: 0,
       totalValue,
@@ -257,7 +267,6 @@ function generateInvoiceData(poData: PO[]): Invoice[] {
         const dueDateStr = formatDate(dueDate);
         const isPaid = dueDate < today && current < new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const isSent = !isPaid && dueDate < new Date(today.getTime() + 30 * 86400000);
-
         invoices.push({
           invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
           poNumber: po.poNumber,
@@ -283,7 +292,6 @@ function generateInvoiceData(poData: PO[]): Invoice[] {
         const dueDateStr = formatDate(dueDate);
         const isPaid = dueDate < today && current < new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const isSent = !isPaid && dueDate < new Date(today.getTime() + 30 * 86400000);
-
         invoices.push({
           invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
           poNumber: po.poNumber,
@@ -304,7 +312,6 @@ function generateInvoiceData(poData: PO[]): Invoice[] {
       const dueDate = new Date(start);
       dueDate.setDate(dueDate.getDate() + 30);
       const isPaid = dueDate < today;
-
       invoices.push({
         invoiceNumber: `INV-${String(invCounter++).padStart(3, '0')}`,
         poNumber: po.poNumber,
@@ -330,23 +337,18 @@ function runSanityChecks(enquiries: Enquiry[], deals: Deal[], poData: PO[]): str
   const uniqueLeads = new Set(enquiries.map(e => e.leadNumber)).size;
   if (uniqueLeads !== 54) warnings.push(`Expected 54 unique leads, got ${uniqueLeads}`);
 
-  const statusLead = enquiries.filter(e => {
-    const stage = e.status;
-    return LEAD_STAGES.has(stage) || stage === 'Lead Generation' || stage === 'Lead Qualification';
-  });
-  // Check by original Status field — we stored salesStage in status, so check differently
-  // Count rows where original Status = "Lead" — we can approximate by non-deal stages
-  const leadCount = enquiries.filter(e => !DEAL_STAGES.has(e.status)).length;
+  const leadCount = enquiries.filter(e => e.recordType === 'Lead').length;
   if (leadCount !== 24) warnings.push(`Expected 24 Lead-status records, got ${leadCount}`);
 
-  const dealCount = enquiries.filter(e => DEAL_STAGES.has(e.status)).length;
+  const dealCount = enquiries.filter(e => e.recordType === 'Deal').length;
   if (dealCount !== 29) warnings.push(`Expected 29 Deal-status records, got ${dealCount}`);
 
   const winCount = deals.filter(d => d.stage === 'Win').length;
   if (winCount !== 11) warnings.push(`Expected 11 Win deals, got ${winCount}`);
 
-  const revenueWon = deals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
-  if (Math.abs(revenueWon - 13080000) > 10000) warnings.push(`Expected revenue ≈₹1.31Cr, got ₹${revenueWon}`);
+  const revenueWon = deals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.expectedAmount, 0);
+  // Note: using expectedAmount now per Change 1
+  console.log(`Revenue Won (Expected Amount for Win deals): ₹${revenueWon}`);
 
   if (poData.length !== 18) warnings.push(`Expected 18 PO rows, got ${poData.length}`);
 
@@ -370,14 +372,11 @@ async function fetchAndParseExcel(): Promise<{
   const response = await fetch('/data/Sales_Pipeline_v2.xlsx');
   const arrayBuffer = await response.arrayBuffer();
   const wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
-
   const sheetNames = wb.SheetNames;
 
-  // Sheet 1: "Lead - Deal"
   const leadDealSheet = wb.Sheets[sheetNames[0]];
   const { enquiries, deals } = leadDealSheet ? parseLeadDealSheet(leadDealSheet) : { enquiries: [], deals: [] };
 
-  // Sheet 2: "PO_Workflow"
   const poSheet = wb.Sheets[sheetNames[1]];
   const poData = poSheet ? parsePOWorkflowSheet(poSheet) : [];
 

@@ -6,7 +6,7 @@ import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange } from '@/lib/formatters';
-import { Users, CheckCircle, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus } from 'lucide-react';
+import { Users, FileText, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus, Info } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend
 } from 'recharts';
@@ -28,6 +28,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const STAGE_COLORS: Record<string, string> = { Win: '#10B981', Negotiation: '#F59E0B', Cancel: '#EF4444', Lost: '#9CA3AF' };
 
+// Change 7: Total Deals stages
+const TOTAL_DEALS_STAGES = new Set([
+  'Converted', 'Commercial Proposal', 'Negotiation', 'Win', 'Lost', 'Cancel', 'Closed'
+]);
+
 export function PipelineView() {
   const { enquiryData: RAW_ENQUIRY, dealData: RAW_DEALS } = useData();
   const { weekStart, weekEnd } = useWeek();
@@ -44,13 +49,13 @@ export function PipelineView() {
   const [sortCol, setSortCol] = useState<string>('leadNumber');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+  // Change 8: filter leads by createdDate, deals by createdDealDate or updatedAt
   const filteredLeads = useMemo(() => {
     let data = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
     if (pillarFilter) data = data.filter(d => d.pillar === pillarFilter);
     if (statusFilter) data = data.filter(d => d.status === statusFilter);
     if (assignedFilter) data = data.filter(d => d.assignedTo === assignedFilter);
     if (search) data = data.filter(d => d.company.toLowerCase().includes(search.toLowerCase()) || d.leadNumber.toLowerCase().includes(search.toLowerCase()));
-
     data.sort((a, b) => {
       const av = (a as any)[sortCol];
       const bv = (b as any)[sortCol];
@@ -60,19 +65,26 @@ export function PipelineView() {
     return data;
   }, [pillarFilter, statusFilter, assignedFilter, search, sortCol, sortDir, ENQUIRY_DATA, weekStart, end]);
 
+  // Change 8: Deals filtered by createdDealDate OR updatedAt within range
   const weekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const converted = weekLeads.filter(e => e.status === 'Converted').length;
-  const weekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
-  const wonDeals = weekDeals.filter(d => d.stage === 'Win');
-  const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
-  const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
+  const weekDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
+
+  // Change 10: All Time KPI cards — no date filter
+  const allTimeLeadsCount = ENQUIRY_DATA.length;
+  const allTimeTotalDeals = DEAL_DATA.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length; // Change 7
+  const allTimeWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
+  const allTimeDecided = DEAL_DATA.filter(d => TOTAL_DEALS_STAGES.has(d.stage) && ['Win', 'Lost', 'Cancel', 'Closed'].includes(d.stage));
+  const allTimeWinRate = allTimeDecided.length > 0 ? (allTimeWonDeals.length / allTimeDecided.length) * 100 : 0;
   const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
-  const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.negotiatedAmount, 0);
-  const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
+  // Change 1: use expectedAmount
+  const allTimePipelineValue = DEAL_DATA.filter(d => openStages.includes(d.stage)).reduce((s, d) => s + d.expectedAmount, 0);
+  const allTimeHasActivePipeline = DEAL_DATA.some(d => openStages.includes(d.stage));
+
+  const wonDeals = weekDeals.filter(d => d.stage === 'Win');
 
   // Date-filtered data for charts
   const dateFilteredLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const dateFilteredDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+  const dateFilteredDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
 
   const sourceData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -86,11 +98,11 @@ export function PipelineView() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [dateFilteredDeals]);
 
+  // Change 1: Expected Amount by Company (single bar, no Negotiated)
   const comparisonData = useMemo(() => {
     return dateFilteredDeals.slice(0, 15).map(d => ({
       name: d.company.length > 15 ? d.company.slice(0, 15) + '…' : d.company,
-      Expected: d.expectedAmount,
-      Negotiated: d.negotiatedAmount,
+      'Expected Amount': d.expectedAmount,
     }));
   }, [dateFilteredDeals]);
 
@@ -109,12 +121,12 @@ export function PipelineView() {
   const prevStart = new Date(weekStart.getTime() - diff);
   const prevEnd = new Date(weekStart.getTime() - 1);
   const prevLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
-  const prevDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
+  const prevDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, prevStart, prevEnd) || isInRange(d.updatedAt, prevStart, prevEnd));
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
 
   return (
     <div className="space-y-6">
-      {/* Deal Pipeline Flow — moved from Executive Summary */}
+      {/* Deal Pipeline Flow */}
       {(() => {
         const convertedCount = weekLeads.filter(e => e.status === 'Converted').length;
         const prevConverted = prevLeads.filter(e => e.status === 'Converted').length;
@@ -129,10 +141,14 @@ export function PipelineView() {
         const closedDeals = weekDeals.filter(d => d.stage === 'Closed');
         const prevClosedDeals = prevDeals.filter(d => d.stage === 'Closed');
 
+        // Change 7: Total Deals uses TOTAL_DEALS_STAGES
+        const totalDealsCount = weekDeals.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length;
+        const prevTotalDealsCount = prevDeals.filter(d => TOTAL_DEALS_STAGES.has(d.stage)).length;
+
         const stages = [
           { name: 'Total Leads', current: weekLeads.length, prev: prevLeads.length, positive: true, color: 'hsl(174,83%,32%)' },
           { name: 'Converted', current: convertedCount, prev: prevConverted, positive: true, color: 'hsl(160,84%,39%)' },
-          { name: 'Total Deals', current: weekDeals.length, prev: prevDeals.length, positive: true, color: 'hsl(38,92%,50%)' },
+          { name: 'Total Deals', current: totalDealsCount, prev: prevTotalDealsCount, positive: true, color: 'hsl(38,92%,50%)' },
           { name: 'Proposal', current: proposalDeals.length, prev: prevProposalDeals.length, positive: true, color: 'hsl(280,70%,55%)' },
           { name: 'Negotiation', current: negDeals.length, prev: prevNegDeals.length, positive: true, color: 'hsl(262,83%,58%)' },
           { name: 'Won', current: wonDeals.length, prev: prevWonDeals.length, positive: true, color: 'hsl(217,91%,60%)' },
@@ -225,17 +241,35 @@ export function PipelineView() {
               <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
               <span>{insightLine}</span>
             </div>
+            {/* Change 6: Info note about Cancel vs Cancelled */}
+            <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground px-3 py-1.5">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+              <span className="italic" style={{ fontSize: '12px' }}>
+                Note: 'Cancel' (sales stage = Cancel) and 'Cancelled' are tracked as separate stages. Only 'Cancel' is included in the pipeline flow above. 'Cancelled' is a distinct stage and is not counted here.
+              </span>
+            </div>
           </div>
         );
       })()}
 
+      {/* Change 9 & 10: 4 KPI cards — All Time, replace Converted with Total Deals */}
       <div className="grid grid-cols-4 gap-4">
-        <KPICard title="Total Leads" value={String(weekLeads.length)} icon={<Users className="h-5 w-5 text-primary" />} />
-        <KPICard title="Converted" value={String(converted)} icon={<CheckCircle className="h-5 w-5 text-success" />} />
-        <KPICard title="Win Rate" value={`${winRate.toFixed(0)}%`} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
         <div>
-          <KPICard title="Pipeline Value" value={formatCurrencyShort(pipelineValue)} icon={<DollarSign className="h-5 w-5 text-success" />} />
-          {!hasActivePipeline && <p className="text-xs text-muted-foreground mt-1 text-center">No active pipeline</p>}
+          <KPICard title="Total Leads" value={String(allTimeLeadsCount)} icon={<Users className="h-5 w-5 text-primary" />} />
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+        </div>
+        <div>
+          <KPICard title="Total Deals" value={String(allTimeTotalDeals)} icon={<FileText className="h-5 w-5 text-primary" />} />
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+        </div>
+        <div>
+          <KPICard title="Win Rate" value={`${allTimeWinRate.toFixed(0)}%`} icon={<TrendingUp className="h-5 w-5 text-primary" />} />
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+        </div>
+        <div>
+          <KPICard title="Pipeline Value" value={formatCurrencyShort(allTimePipelineValue)} icon={<DollarSign className="h-5 w-5 text-success" />} />
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">All time</p>
+          {!allTimeHasActivePipeline && <p className="text-xs text-muted-foreground text-center">No active pipeline</p>}
         </div>
       </div>
 
@@ -268,17 +302,16 @@ export function PipelineView() {
           </ResponsiveContainer>
         </div>
 
+        {/* Change 1: Expected Amount by Company — single bar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Expected vs Negotiated</h3>
+          <h3 className="text-sm font-semibold mb-4">Expected Amount by Company</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={comparisonData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
               <XAxis type="number" fontSize={10} tickFormatter={(v) => formatCurrencyShort(v)} />
               <YAxis type="category" dataKey="name" width={100} fontSize={9} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Expected" fill="#94A3B8" radius={[0, 2, 2, 0]} />
-              <Bar dataKey="Negotiated" fill="#0D9488" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="Expected Amount" fill="#0D9488" radius={[0, 2, 2, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
