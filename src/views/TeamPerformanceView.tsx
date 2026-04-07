@@ -48,11 +48,11 @@ export function TeamPerformanceView() {
       const won = deals.filter(d => d.stage === 'Win');
       const decided = deals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
       const winRate = decided.length > 0 ? (won.length / decided.length) * 100 : 0;
-      const dealValueWon = won.reduce((s, d) => s + d.negotiatedAmount, 0);
+      // Change 1: use expectedAmount
+      const dealValueWon = won.reduce((s, d) => s + d.expectedAmount, 0);
 
       const wonDealIds = won.map(d => d.dealId);
       const activePOs = PO_DATA.filter(p => wonDealIds.includes(p.dealId) && p.status === 'Active').length;
-
       const repPONumbers = PO_DATA.filter(p => wonDealIds.includes(p.dealId)).map(p => p.poNumber);
       const invoicesRaised = INVOICE_DATA.filter(i => repPONumbers.includes(i.poNumber)).length;
 
@@ -63,7 +63,8 @@ export function TeamPerformanceView() {
   const totalReps = repData.length;
   const totalLeads = ENQUIRY_DATA.length;
   const topRep = repData.length > 0 ? repData.reduce((best, r) => r.dealValueWon > best.dealValueWon ? r : best, repData[0]) : null;
-  const totalWonValue = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  // Change 1: use expectedAmount
+  const totalWonValue = DEAL_DATA.filter(d => d.stage === 'Win').reduce((s, d) => s + d.expectedAmount, 0);
 
   const leadsPerRep = repData.map(r => ({ name: r.name.split(' ')[0], value: r.leads })).sort((a, b) => b.value - a.value);
   const valuePerRep = repData.filter(r => r.dealValueWon > 0).map(r => ({ name: r.name.split(' ')[0], value: r.dealValueWon })).sort((a, b) => b.value - a.value);

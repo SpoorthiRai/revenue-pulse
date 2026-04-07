@@ -44,6 +44,10 @@ function TrendBadge({ change, suffix = 'vs prev period' }: { change: { value: nu
   );
 }
 
+const TOTAL_DEALS_STAGES = new Set([
+  'Converted', 'Commercial Proposal', 'Negotiation', 'Win', 'Lost', 'Cancel', 'Closed'
+]);
+
 export function ExecutiveSummaryView() {
   const { enquiryData: ENQUIRY_DATA, dealData: DEAL_DATA } = useData();
   const { weekStart, weekEnd } = useWeek();
@@ -59,60 +63,59 @@ export function ExecutiveSummaryView() {
   const filteredEnquiry = selectedPillar ? ENQUIRY_DATA.filter(e => e.pillar === selectedPillar) : ENQUIRY_DATA;
   const filteredDeals = selectedPillar ? DEAL_DATA.filter(d => d.pillar === selectedPillar) : DEAL_DATA;
 
-  // Filtered data
   const weekLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, weekStart, end));
   const prevLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
-  const weekDeals = filteredDeals.filter(d => isInRange(d.closeDate, weekStart, end));
-  const prevDeals = filteredDeals.filter(d => isInRange(d.closeDate, prevStart, prevEnd));
+  const weekDeals = filteredDeals.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
+  const prevDeals = filteredDeals.filter(d => isInRange(d.createdDealDate, prevStart, prevEnd) || isInRange(d.updatedAt, prevStart, prevEnd));
 
   const wonDeals = weekDeals.filter(d => d.stage === 'Win');
   const prevWonDeals = prevDeals.filter(d => d.stage === 'Win');
 
   // ========== SECTION 1: KPIs ==========
-  const revenueWon = wonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
-  const prevRevenueWon = prevWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const revenueWon = wonDeals.reduce((s, d) => s + d.expectedAmount, 0);
+  const prevRevenueWon = prevWonDeals.reduce((s, d) => s + d.expectedAmount, 0);
 
   const openStages = ['Commercial Proposal', 'Negotiation', 'Assign', 'First Contact', 'Discovery Meeting'];
   const pipelineValue = weekDeals.filter(d => openStages.includes(d.stage))
-    .reduce((s, d) => s + d.negotiatedAmount, 0);
+    .reduce((s, d) => s + d.expectedAmount, 0);
   const prevPipelineValue = prevDeals.filter(d => openStages.includes(d.stage))
-    .reduce((s, d) => s + d.negotiatedAmount, 0);
+    .reduce((s, d) => s + d.expectedAmount, 0);
   const hasActivePipeline = weekDeals.some(d => openStages.includes(d.stage));
 
-  const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+  const decided = weekDeals.filter(d => ['Win', 'Lost', 'Cancel', 'Closed'].includes(d.stage));
   const winRate = decided.length > 0 ? (wonDeals.length / decided.length) * 100 : 0;
-  const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
+  const prevDecided = prevDeals.filter(d => ['Win', 'Lost', 'Cancel', 'Closed'].includes(d.stage));
   const prevWinRate = prevDecided.length > 0 ? (prevWonDeals.length / prevDecided.length) * 100 : 0;
-
-  const avgDealSize = wonDeals.length > 0 ? revenueWon / wonDeals.length : 0;
-  const prevAvgDealSize = prevWonDeals.length > 0 ? prevRevenueWon / prevWonDeals.length : 0;
 
   const salesCycleDays = useMemo(() => {
     const days = wonDeals.map(d => {
-      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
-      if (!lead) return null;
-      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+      if (!d.closeDate || !d.createdDealDate) return null;
+      const diff = (new Date(d.closeDate).getTime() - new Date(d.createdDealDate).getTime()) / 86400000;
+      return diff > 0 ? diff : null;
     }).filter(Boolean) as number[];
     return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
-  }, [wonDeals, ENQUIRY_DATA]);
+  }, [wonDeals]);
 
   const prevSalesCycleDays = useMemo(() => {
     const days = prevWonDeals.map(d => {
-      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
-      if (!lead) return null;
-      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+      if (!d.closeDate || !d.createdDealDate) return null;
+      const diff = (new Date(d.closeDate).getTime() - new Date(d.createdDealDate).getTime()) / 86400000;
+      return diff > 0 ? diff : null;
     }).filter(Boolean) as number[];
     return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
-  }, [prevWonDeals, ENQUIRY_DATA]);
+  }, [prevWonDeals]);
 
-  const convertedLeads = weekLeads.filter(e => e.status === 'Converted').length;
-  const prevConvertedLeads = prevLeads.filter(e => e.status === 'Converted').length;
-  const leadConversionRate = weekLeads.length > 0 ? (convertedLeads / weekLeads.length) * 100 : 0;
-  const prevLeadConversionRate = prevLeads.length > 0 ? (prevConvertedLeads / prevLeads.length) * 100 : 0;
+  const weekAllRecords = filteredEnquiry.filter(e => isInRange(e.createdDate, weekStart, end));
+  const weekDealRecords = weekAllRecords.filter(e => e.recordType === 'Deal').length;
+  const weekTotalRecords = weekAllRecords.filter(e => e.recordType === 'Lead' || e.recordType === 'Deal').length;
+  const leadConversionRate = weekTotalRecords > 0 ? (weekDealRecords / weekTotalRecords) * 100 : 0;
+  const prevAllRecords = filteredEnquiry.filter(e => isInRange(e.createdDate, prevStart, prevEnd));
+  const prevDealRecords = prevAllRecords.filter(e => e.recordType === 'Deal').length;
+  const prevTotalRecords = prevAllRecords.filter(e => e.recordType === 'Lead' || e.recordType === 'Deal').length;
+  const prevLeadConversionRate = prevTotalRecords > 0 ? (prevDealRecords / prevTotalRecords) * 100 : 0;
 
-  // Deals Closed = Win + Closed
-  const dealsClosed = weekDeals.filter(d => d.stage === 'Win' || d.stage === 'Closed').length;
-  const prevDealsClosed = prevDeals.filter(d => d.stage === 'Win' || d.stage === 'Closed').length;
+  const dealsClosed = weekDeals.filter(d => d.stage === 'Closed').length;
+  const prevDealsClosed = prevDeals.filter(d => d.stage === 'Closed').length;
 
   const filteredKpis = [
     { title: 'Revenue Won', value: formatCurrencyShort(revenueWon), prevValue: formatCurrencyShort(prevRevenueWon), change: percentChange(revenueWon, prevRevenueWon), icon: <TrendingUp className="h-4 w-4" /> },
@@ -123,45 +126,46 @@ export function ExecutiveSummaryView() {
 
   // All Time Benchmark KPIs — always use full unfiltered data
   const allTimeWonDeals = DEAL_DATA.filter(d => d.stage === 'Win');
-  const allTimeRevenue = allTimeWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const allTimeRevenue = allTimeWonDeals.reduce((s, d) => s + d.expectedAmount, 0);
   const allTimeAvgDealSize = allTimeWonDeals.length > 0 ? allTimeRevenue / allTimeWonDeals.length : 0;
 
   const allTimeSalesCycle = useMemo(() => {
     const days = allTimeWonDeals.map(d => {
-      const lead = ENQUIRY_DATA.find(e => e.leadNumber === d.dealId);
-      if (!lead) return null;
-      return (new Date(d.closeDate).getTime() - new Date(lead.createdDate).getTime()) / 86400000;
+      if (!d.closeDate || !d.createdDealDate) return null;
+      const diff = (new Date(d.closeDate).getTime() - new Date(d.createdDealDate).getTime()) / 86400000;
+      return diff > 0 ? diff : null;
     }).filter(Boolean) as number[];
     return days.length > 0 ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0;
-  }, [allTimeWonDeals, ENQUIRY_DATA]);
+  }, [allTimeWonDeals]);
 
-  const allTimeConvertedLeads = ENQUIRY_DATA.filter(e => e.status === 'Converted').length;
-  const allTimeLeadConversion = ENQUIRY_DATA.length > 0 ? (allTimeConvertedLeads / ENQUIRY_DATA.length) * 100 : 0;
+  const allTimeDealRecords = ENQUIRY_DATA.filter(e => e.recordType === 'Deal').length;
+  const allTimeTotalRecords = ENQUIRY_DATA.filter(e => e.recordType === 'Lead' || e.recordType === 'Deal').length;
+  const allTimeLeadConversion = allTimeTotalRecords > 0 ? (allTimeDealRecords / allTimeTotalRecords) * 100 : 0;
 
   const benchmarkKpis = [
-    { title: 'Avg Deal Size', value: formatCurrencyShort(allTimeAvgDealSize), benchmark: 'Benchmark: varies by pillar', icon: <Target className="h-4 w-4" /> },
-    { title: 'Sales Cycle', value: `${allTimeSalesCycle} days`, benchmark: 'Benchmark: 30–60 days', icon: <Clock className="h-4 w-4" /> },
-    { title: 'Lead Conversion', value: `${allTimeLeadConversion.toFixed(0)}%`, benchmark: 'Benchmark: >70% healthy', icon: <Activity className="h-4 w-4" /> },
+    { title: 'Avg Deal Size', value: formatCurrencyShort(allTimeAvgDealSize), icon: <Target className="h-4 w-4" /> },
+    { title: 'Sales Cycle', value: `${allTimeSalesCycle} days`, icon: <Clock className="h-4 w-4" /> },
+    { title: 'Lead Conversion', value: `${allTimeLeadConversion.toFixed(0)}%`, icon: <Activity className="h-4 w-4" /> },
   ];
 
   // ========== Revenue & Pipeline calculations ==========
   const ANNUAL_TARGET = 50000000;
-  const revenueClosed = filteredDeals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.negotiatedAmount, 0);
+  const revenueClosed = filteredDeals.filter(d => d.stage === 'Win').reduce((s, d) => s + d.expectedAmount, 0);
   const weightedPipeline = filteredDeals.filter(d => d.stage === 'Negotiation').reduce((s, d) => s + d.expectedAmount * 0.6, 0);
   const forecastedRevenue = revenueClosed + weightedPipeline;
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
 
-  // ========== SECTION 3: Simplified Funnel ==========
-  const funnelLeads = weekLeads.length;
-  const funnelConverted = weekLeads.filter(e => e.status === 'Converted').length;
-  const funnelDeals = weekDeals.length;
-  const funnelWon = wonDeals.length;
+  // ========== SECTION 3: Sales Funnel ==========
+  const funnelLeadsCount = weekAllRecords.filter(e => e.recordType === 'Lead').length;
+  const funnelDealsCount = weekAllRecords.filter(e => e.recordType === 'Deal').length;
+  const funnelWinCount = weekDeals.filter(d => d.stage === 'Win').length;
+  const funnelClosedCount = weekDeals.filter(d => d.stage === 'Closed').length;
 
   const simpleFunnel = [
-    { name: 'Leads', count: funnelLeads, color: 'hsl(174,83%,32%)' },
-    { name: 'Converted', count: funnelConverted, color: 'hsl(160,84%,39%)' },
-    { name: 'Deals', count: funnelDeals, color: 'hsl(38,92%,50%)' },
-    { name: 'Won', count: funnelWon, color: 'hsl(217,91%,60%)' },
+    { name: 'Leads', count: funnelLeadsCount, color: 'hsl(174,83%,32%)' },
+    { name: 'Deals', count: funnelDealsCount, color: 'hsl(38,92%,50%)' },
+    { name: 'Win', count: funnelWinCount, color: 'hsl(217,91%,60%)' },
+    { name: 'Closed', count: funnelClosedCount, color: 'hsl(200,70%,50%)' },
   ];
 
   const funnelConversions = simpleFunnel.slice(0, -1).map((stage, i) => {
@@ -169,7 +173,7 @@ export function ExecutiveSummaryView() {
     const rate = stage.count > 0 ? (next.count / stage.count) * 100 : 0;
     return { from: stage.name, to: next.name, rate, drop: 100 - rate };
   });
-  const biggestLeakage = funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]);
+  const biggestLeakage = funnelConversions.length > 0 ? funnelConversions.reduce((worst, c) => c.drop > worst.drop ? c : worst, funnelConversions[0]) : null;
   const maxFunnelCount = Math.max(...simpleFunnel.map(s => s.count), 1);
 
   // ========== SECTION 4: Pipeline Health ==========
@@ -186,8 +190,7 @@ export function ExecutiveSummaryView() {
   const pipelineCoverage = ANNUAL_TARGET > 0 ? ((totalPipelineActive + revenueClosed) / ANNUAL_TARGET) : 0;
 
   // ========== SECTION 5: Service Pillar (UNFILTERED for donut charts) ==========
-  const allWeekLeads = ENQUIRY_DATA.filter(e => isInRange(e.createdDate, weekStart, end));
-  const allWeekDeals = DEAL_DATA.filter(d => isInRange(d.closeDate, weekStart, end));
+  const allWeekDeals = DEAL_DATA.filter(d => isInRange(d.createdDealDate, weekStart, end) || isInRange(d.updatedAt, weekStart, end));
   const allWonDeals = allWeekDeals.filter(d => d.stage === 'Win');
 
   const donutDealData = useMemo(() => {
@@ -198,17 +201,24 @@ export function ExecutiveSummaryView() {
     }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
   }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
 
+  const [revenueDonutFilter, setRevenueDonutFilter] = useState<'Win' | 'Closed' | 'Both'>('Both');
+
   const donutRevenueData = useMemo(() => {
     const pillars = [...new Set(ENQUIRY_DATA.map(e => e.pillar).concat(DEAL_DATA.map(d => d.pillar)))].filter(Boolean);
+    const filteredDonutDeals = allWeekDeals.filter(d => {
+      if (revenueDonutFilter === 'Win') return d.stage === 'Win';
+      if (revenueDonutFilter === 'Closed') return d.stage === 'Closed';
+      return d.stage === 'Win' || d.stage === 'Closed';
+    });
     return pillars.map(pillar => {
-      const deals = allWonDeals.filter(d => d.pillar === pillar);
-      const revenue = deals.reduce((s, d) => s + d.negotiatedAmount, 0);
+      const deals = filteredDonutDeals.filter(d => d.pillar === pillar);
+      const revenue = deals.reduce((s, d) => s + d.expectedAmount, 0);
       return { name: pillar, value: revenue, color: getPillarColor(pillar) };
     }).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
-  }, [allWonDeals, ENQUIRY_DATA, DEAL_DATA]);
+  }, [allWeekDeals, ENQUIRY_DATA, DEAL_DATA, revenueDonutFilter]);
 
   const totalDealsWon = allWonDeals.length;
-  const totalRevenueWon = allWonDeals.reduce((s, d) => s + d.negotiatedAmount, 0);
+  const totalRevenueFiltered = donutRevenueData.reduce((s, d) => s + d.value, 0);
 
   // Keep servicePillarData for insights
   const servicePillarData = useMemo(() => {
@@ -216,7 +226,7 @@ export function ExecutiveSummaryView() {
     return pillars.map(pillar => {
       const leads = weekLeads.filter(e => e.pillar === pillar).length;
       const deals = wonDeals.filter(d => d.pillar === pillar);
-      const revenue = deals.reduce((s, d) => s + d.negotiatedAmount, 0);
+      const revenue = deals.reduce((s, d) => s + d.expectedAmount, 0);
       const allPillarDeals = weekDeals.filter(d => d.pillar === pillar);
       const pillarDecided = allPillarDeals.filter(d => ['Win', 'Lost', 'Cancel'].includes(d.stage));
       const wr = pillarDecided.length > 0 ? (deals.length / pillarDecided.length) * 100 : 0;
@@ -237,7 +247,7 @@ export function ExecutiveSummaryView() {
       const label = `${mon.getDate()}/${mon.getMonth() + 1}`;
       const bucketLeads = filteredEnquiry.filter(e => isInRange(e.createdDate, mon, bucketEnd));
       const bucketConverted = bucketLeads.filter(e => e.status === 'Converted');
-      const bucketDeals = filteredDeals.filter(d => isInRange(d.closeDate, mon, bucketEnd));
+      const bucketDeals = filteredDeals.filter(d => isInRange(d.createdDealDate, mon, bucketEnd) || isInRange(d.updatedAt, mon, bucketEnd));
       const bucketWon = bucketDeals.filter(d => d.stage === 'Win');
       weeks.push({
         week: label,
@@ -245,7 +255,7 @@ export function ExecutiveSummaryView() {
         converted: bucketConverted.length,
         deals: bucketDeals.length,
         won: bucketWon.length,
-        revenue: bucketWon.reduce((s, d) => s + d.negotiatedAmount, 0),
+        revenue: bucketWon.reduce((s, d) => s + d.expectedAmount, 0),
       });
       current += 7 * 86400000;
     }
@@ -256,7 +266,7 @@ export function ExecutiveSummaryView() {
   const stuckDeals = useMemo(() => {
     const today = new Date('2025-10-07');
     return filteredDeals.filter(d => !['Win', 'Lost', 'Cancel'].includes(d.stage)).map(d => {
-      const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.closeDate).getTime()) / 86400000));
+      const daysInStage = Math.abs(Math.round((today.getTime() - new Date(d.createdDealDate || d.closeDate).getTime()) / 86400000));
       return { ...d, daysInStage };
     });
   }, [filteredDeals]);
@@ -267,7 +277,7 @@ export function ExecutiveSummaryView() {
     return Object.entries(map).map(([stage, count]) => ({ stage, count }));
   }, [stuckDeals]);
 
-  // ========== SECTION 9: Insights (split into positive / attention) ==========
+  // ========== SECTION 9: Insights ==========
   const { positiveInsights, attentionInsights } = useMemo(() => {
     const positive: string[] = [];
     const attention: string[] = [];
@@ -319,7 +329,6 @@ export function ExecutiveSummaryView() {
   const [trendMode, setTrendMode] = useState<'leads-deals' | 'deals-revenue' | 'win-loss'>('leads-deals');
   const trendTitle = trendMode === 'leads-deals' ? 'Lead & Deal Volume Over Time' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue Over Time' : 'Wins vs Losses Over Time';
 
-  // Add won/lost columns to weeklyActivity for win-loss mode
   const trendData = useMemo(() => {
     return weeklyActivity.map(w => {
       const lost = filteredDeals.filter(d => {
@@ -328,7 +337,7 @@ export function ExecutiveSummaryView() {
         const wkMon = new Date(mon.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
         const wkSun = new Date(wkMon.getTime() + 6 * 86400000);
         wkSun.setHours(23, 59, 59, 999);
-        return d.stage === 'Lost' && isInRange(d.closeDate, wkMon, wkSun);
+        return d.stage === 'Lost' && (isInRange(d.createdDealDate, wkMon, wkSun) || isInRange(d.updatedAt, wkMon, wkSun));
       }).length;
       const decided = w.won + lost;
       const winRate = decided > 0 ? Math.round((w.won / decided) * 100) : 0;
@@ -346,10 +355,9 @@ export function ExecutiveSummaryView() {
         <span>compared to previous equal period</span>
       </div>
 
-      {/* KEY INSIGHTS — Moved to top, split into 2 columns */}
+      {/* KEY INSIGHTS */}
       <div className="bg-card rounded-lg border">
         <div className="grid grid-cols-2 divide-x">
-          {/* Effective Areas */}
           <div className="p-5 border-l-4 border-l-success rounded-l-lg">
             <div className="flex items-center gap-2 mb-3">
               <span className="h-2.5 w-2.5 rounded-full bg-success" />
@@ -368,7 +376,6 @@ export function ExecutiveSummaryView() {
               <p className="text-sm text-muted-foreground italic">No highlights this period</p>
             )}
           </div>
-          {/* Needs Attention */}
           <div className="p-5 border-l-4 border-l-destructive">
             <div className="flex items-center gap-2 mb-3">
               <span className="h-2.5 w-2.5 rounded-full bg-destructive" />
@@ -392,7 +399,6 @@ export function ExecutiveSummaryView() {
 
       {/* SECTION 1: Executive KPI Cards */}
       <div className="flex gap-3">
-        {/* Filtered KPIs */}
         <div className="grid grid-cols-4 gap-3 flex-1">
           {filteredKpis.map(kpi => (
             <div key={kpi.title} className="bg-card rounded-lg border p-4 hover:shadow-md transition-shadow">
@@ -420,7 +426,6 @@ export function ExecutiveSummaryView() {
                   <span className="text-muted-foreground">{kpi.icon}</span>
                 </div>
                 <p className="text-xl font-bold text-foreground">{kpi.value}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{kpi.benchmark}</p>
               </div>
             ))}
           </div>
@@ -428,7 +433,7 @@ export function ExecutiveSummaryView() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* SECTION 3: Simplified Sales Funnel */}
+        {/* SECTION 3: Sales Funnel */}
         <div className="bg-card rounded-lg border p-5">
           <h3 className="text-sm font-semibold mb-4">Sales Funnel Conversion</h3>
           <div className="space-y-4">
@@ -548,7 +553,6 @@ export function ExecutiveSummaryView() {
                       />
                     ))}
                   </Pie>
-                  {/* Center label */}
                   <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">{totalDealsWon}</text>
                   <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Deals Won</text>
                 </PieChart>
@@ -579,7 +583,20 @@ export function ExecutiveSummaryView() {
 
         {/* RIGHT: Revenue by Service Pillar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-2">Revenue by Service Pillar</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Revenue by Service Pillar</h3>
+          </div>
+          <div className="flex rounded-lg border overflow-hidden mb-3">
+            {(['Win', 'Closed', 'Both'] as const).map(opt => (
+              <button
+                key={opt}
+                onClick={() => setRevenueDonutFilter(opt)}
+                className={`px-3 py-1 text-xs font-medium transition-colors flex-1 ${revenueDonutFilter === opt ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
           {donutRevenueData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={220}>
@@ -605,13 +622,13 @@ export function ExecutiveSummaryView() {
                       />
                     ))}
                   </Pie>
-                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-lg font-bold">{formatCurrencyShort(totalRevenueWon)}</text>
+                  <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-lg font-bold">{formatCurrencyShort(totalRevenueFiltered)}</text>
                   <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[10px]">Total Revenue</text>
                 </PieChart>
               </ResponsiveContainer>
               <div className="mt-2 space-y-1.5">
                 {donutRevenueData.map(d => {
-                  const pct = totalRevenueWon > 0 ? ((d.value / totalRevenueWon) * 100).toFixed(0) : '0';
+                  const pct = totalRevenueFiltered > 0 ? ((d.value / totalRevenueFiltered) * 100).toFixed(0) : '0';
                   return (
                     <div
                       key={d.name}
@@ -691,10 +708,8 @@ export function ExecutiveSummaryView() {
           )}
         </ResponsiveContainer>
 
-        {/* Divider */}
         <div className="border-t my-4" />
 
-        {/* Bar chart — same toggle, same data */}
         <h4 className="text-xs font-semibold text-muted-foreground mb-3">
           {trendMode === 'leads-deals' ? 'Lead & Deal Volume — Bar View' : trendMode === 'deals-revenue' ? 'Deal Count vs Revenue — Bar View' : 'Wins vs Losses — Bar View'}
         </h4>
@@ -735,8 +750,6 @@ export function ExecutiveSummaryView() {
           )}
         </ResponsiveContainer>
       </div>
-
-      {/* Key Insights section moved to top */}
     </div>
   );
 }
