@@ -6,7 +6,7 @@ import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { formatCurrencyShort, formatCurrency, isInRange, percentChange } from '@/lib/formatters';
-import { Users, FileText, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus, Info } from 'lucide-react';
+import { Users, FileText, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, Lightbulb, Minus } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, Legend
 } from 'recharts';
@@ -98,11 +98,11 @@ export function PipelineView() {
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [dateFilteredDeals]);
 
-  // Change 1: Expected Amount by Company (single bar, no Negotiated)
   const comparisonData = useMemo(() => {
     return dateFilteredDeals.slice(0, 15).map(d => ({
       name: d.company.length > 15 ? d.company.slice(0, 15) + '…' : d.company,
-      'Expected Amount': d.expectedAmount,
+      'Expected': d.expectedAmount,
+      'Negotiated': d.negotiatedAmount,
     }));
   }, [dateFilteredDeals]);
 
@@ -241,13 +241,6 @@ export function PipelineView() {
               <Lightbulb className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
               <span>{insightLine}</span>
             </div>
-            {/* Change 6: Info note about Cancel vs Cancelled */}
-            <div className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground px-3 py-1.5">
-              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              <span className="italic" style={{ fontSize: '12px' }}>
-                Note: 'Cancel' (sales stage = Cancel) and 'Cancelled' are tracked as separate stages. Only 'Cancel' is included in the pipeline flow above. 'Cancelled' is a distinct stage and is not counted here.
-              </span>
-            </div>
           </div>
         );
       })()}
@@ -302,16 +295,17 @@ export function PipelineView() {
           </ResponsiveContainer>
         </div>
 
-        {/* Change 1: Expected Amount by Company — single bar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Expected Amount by Company</h3>
+          <h3 className="text-sm font-semibold mb-4">Expected vs Negotiated</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={comparisonData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
               <XAxis type="number" fontSize={10} tickFormatter={(v) => formatCurrencyShort(v)} />
               <YAxis type="category" dataKey="name" width={100} fontSize={9} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Expected Amount" fill="#0D9488" radius={[0, 2, 2, 0]} />
+              <Legend fontSize={11} />
+              <Bar dataKey="Expected" fill="hsl(174,83%,52%)" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="Negotiated" fill="hsl(174,83%,32%)" radius={[0, 2, 2, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

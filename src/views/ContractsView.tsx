@@ -37,17 +37,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // Timeline tooltip for PO bars
 function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties }) {
-  const duration = (() => {
-    if (po.expiryDate && po.poDate) {
-      const exp = new Date(po.expiryDate);
-      const pd = new Date(po.poDate);
-      if (!isNaN(exp.getTime()) && !isNaN(pd.getTime())) {
-        const months = Math.round((exp.getTime() - pd.getTime()) / (30.44 * 86400000));
-        return `${months} months`;
-      }
-    }
-    return 'Duration not specified';
-  })();
+  const barStart = po._barStart || po.startDate || po.poDate;
+  const barEnd = po._barEnd || po.endDate || po.expiryDate;
+  const startFormatted = barStart ? new Date(barStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  const endFormatted = barEnd ? new Date(barEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  const durationText = startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified';
 
   const expiryFormatted = po.expiryDate ? new Date(po.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -55,7 +49,7 @@ function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties })
     <div className="bg-card border rounded-lg shadow-lg p-3 text-xs absolute z-50" style={style}>
       <p className="font-medium text-foreground mb-1">PO: {po.poNumber || '—'}</p>
       <p className="text-foreground">{po.customer}</p>
-      <p className="text-muted-foreground">Duration: {duration}</p>
+      <p className="text-muted-foreground">{durationText}</p>
       <p className="text-muted-foreground">Total Value: {formatCurrency(po.totalValue)}</p>
       <p className="text-muted-foreground">Expiry: {expiryFormatted}</p>
     </div>
@@ -129,58 +123,74 @@ export function ContractsView() {
           </ResponsiveContainer>
         </div>
 
-        {/* Change 11: PO Timeline redesign */}
+        {/* Change 4: PO Timeline redesign */}
         <div className="bg-card rounded-lg border p-5 relative">
           <h3 className="text-sm font-semibold mb-2">PO Timeline</h3>
-          {/* X axis at top */}
+          {/* Sticky X axis at top */}
           <div className="flex justify-between mb-2 text-[10px] text-muted-foreground">
             <span>Apr '25</span><span>Jul '25</span><span>Oct '25</span><span>Jan '26</span><span>Apr '26</span>
           </div>
-          <div className="space-y-2">
-            {PO_DATA.map((po, idx) => {
-              const start = Math.max(0, (new Date(po.startDate).getTime() - timelineStart.getTime()) / 86400000);
-              const dur = (new Date(po.endDate).getTime() - new Date(po.startDate).getTime()) / 86400000;
-              const leftPct = (start / totalDays) * 100;
-              const widthPct = Math.max(2, (dur / totalDays) * 100);
-              const barColor = companyColorMap[po.customer] || '#64748B';
-              const isWide = widthPct > 15;
+          <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
+            <div style={{ minHeight: `${PO_DATA.length * 36}px` }} className="space-y-1">
+              {PO_DATA.map((po, idx) => {
+                const barStartDate = po.startDate || po.poDate;
+                const barEndDate = po.endDate || po.expiryDate;
+                const hasEnd = !!barEndDate;
 
-              return (
-                <div
-                  key={po.poNumber}
-                  className="flex items-center gap-2 relative"
-                  onMouseEnter={(e) => { setHoveredPO(po.poNumber); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
-                  onMouseLeave={() => setHoveredPO(null)}
-                >
-                  <div className="flex-1 h-7 bg-muted rounded relative">
-                    <div
-                      className="absolute h-full rounded flex items-center overflow-visible font-medium"
-                      style={{
-                        left: `${leftPct}%`,
-                        width: `${widthPct}%`,
-                        backgroundColor: barColor,
-                      }}
-                    >
-                      {isWide ? (
-                        <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
-                      ) : null}
-                    </div>
-                    {/* Name outside bar if too narrow */}
-                    {!isWide && (
-                      <span
-                        className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
-                        style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
+                const startMs = barStartDate ? new Date(barStartDate).getTime() : timelineStart.getTime();
+                let endMs = hasEnd ? new Date(barEndDate).getTime() : startMs + 30 * 86400000;
+                const isDashed = !hasEnd;
+
+                const start = Math.max(0, (startMs - timelineStart.getTime()) / 86400000);
+                const dur = Math.max(1, (endMs - startMs) / 86400000);
+                const leftPct = (start / totalDays) * 100;
+                const widthPct = Math.max(2, (dur / totalDays) * 100);
+                const barColor = companyColorMap[po.customer] || '#64748B';
+                const isWide = widthPct > 15;
+
+                const yLabel = po.poNumber && po.poNumber !== '-' && !po.poNumber.startsWith('PO-') ? po.poNumber : po.customer;
+
+                const enrichedPo = { ...po, _barStart: barStartDate, _barEnd: hasEnd ? barEndDate : null };
+
+                return (
+                  <div
+                    key={`${po.poNumber}-${idx}`}
+                    className="flex items-center gap-2 relative"
+                    style={{ minHeight: '32px' }}
+                    onMouseEnter={(e) => { setHoveredPO(po.poNumber); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
+                    onMouseLeave={() => setHoveredPO(null)}
+                  >
+                    <div className="w-24 shrink-0 text-[10px] text-muted-foreground font-medium truncate text-right pr-1">{yLabel}</div>
+                    <div className="flex-1 h-7 bg-muted rounded relative">
+                      <div
+                        className="absolute h-full rounded flex items-center overflow-visible font-medium"
+                        style={{
+                          left: `${leftPct}%`,
+                          width: `${widthPct}%`,
+                          backgroundColor: barColor,
+                          ...(isDashed ? { border: '2px dashed rgba(255,255,255,0.5)', opacity: 0.7 } : {}),
+                        }}
                       >
-                        {po.customer}
-                      </span>
+                        {isWide ? (
+                          <span className="text-[10px] text-white px-1.5 truncate w-full">{po.customer}</span>
+                        ) : null}
+                      </div>
+                      {!isWide && (
+                        <span
+                          className="absolute text-[10px] font-medium text-foreground whitespace-nowrap"
+                          style={{ left: `${leftPct + widthPct + 0.5}%`, top: '50%', transform: 'translateY(-50%)' }}
+                        >
+                          {po.customer}
+                        </span>
+                      )}
+                    </div>
+                    {hoveredPO === po.poNumber && (
+                      <TimelineTooltip po={enrichedPo} style={{ position: 'fixed', left: tooltipPos.x + 12, top: tooltipPos.y - 60 }} />
                     )}
                   </div>
-                  {hoveredPO === po.poNumber && (
-                    <TimelineTooltip po={po} style={{ position: 'fixed', left: tooltipPos.x + 12, top: tooltipPos.y - 60 }} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

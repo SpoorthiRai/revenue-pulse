@@ -156,7 +156,7 @@ export function ExecutiveSummaryView() {
   const targetAchievement = (forecastedRevenue / ANNUAL_TARGET) * 100;
 
   // ========== SECTION 3: Sales Funnel ==========
-  const funnelLeadsCount = weekAllRecords.filter(e => e.recordType === 'Lead').length;
+  const funnelLeadsCount = weekAllRecords.length;
   const funnelDealsCount = weekAllRecords.filter(e => e.recordType === 'Deal').length;
   const funnelWinCount = weekDeals.filter(d => d.stage === 'Win').length;
   const funnelClosedCount = weekDeals.filter(d => d.stage === 'Closed').length;
