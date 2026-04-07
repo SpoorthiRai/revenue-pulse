@@ -320,7 +320,7 @@ export function PipelineView() {
               <YAxis type="category" dataKey="name" width={100} fontSize={9} tick={{ fill: '#9CA3AF' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend fontSize={11} />
-              <Bar dataKey="Expected" fill="hsl(174,83%,52%)" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="Expected" fill="hsl(217,91%,60%)" radius={[0, 2, 2, 0]} />
               <Bar dataKey="Negotiated" fill="hsl(174,83%,32%)" radius={[0, 2, 2, 0]} />
             </BarChart>
           </ResponsiveContainer>
