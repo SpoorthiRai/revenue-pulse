@@ -37,17 +37,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // Timeline tooltip for PO bars
 function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties }) {
-  const duration = (() => {
-    if (po.expiryDate && po.poDate) {
-      const exp = new Date(po.expiryDate);
-      const pd = new Date(po.poDate);
-      if (!isNaN(exp.getTime()) && !isNaN(pd.getTime())) {
-        const months = Math.round((exp.getTime() - pd.getTime()) / (30.44 * 86400000));
-        return `${months} months`;
-      }
-    }
-    return 'Duration not specified';
-  })();
+  const barStart = po._barStart || po.startDate || po.poDate;
+  const barEnd = po._barEnd || po.endDate || po.expiryDate;
+  const startFormatted = barStart ? new Date(barStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  const endFormatted = barEnd ? new Date(barEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  const durationText = startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified';
 
   const expiryFormatted = po.expiryDate ? new Date(po.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -55,7 +49,7 @@ function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties })
     <div className="bg-card border rounded-lg shadow-lg p-3 text-xs absolute z-50" style={style}>
       <p className="font-medium text-foreground mb-1">PO: {po.poNumber || '—'}</p>
       <p className="text-foreground">{po.customer}</p>
-      <p className="text-muted-foreground">Duration: {duration}</p>
+      <p className="text-muted-foreground">{durationText}</p>
       <p className="text-muted-foreground">Total Value: {formatCurrency(po.totalValue)}</p>
       <p className="text-muted-foreground">Expiry: {expiryFormatted}</p>
     </div>
