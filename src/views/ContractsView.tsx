@@ -39,9 +39,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function TimelineTooltip({ po, style }: { po: any; style: React.CSSProperties }) {
   const barStart = po._barStart || po.startDate || po.poDate;
   const barEnd = po._barEnd || po.endDate || po.expiryDate;
+  const hasNoBar = po._hasNoBar;
   const startFormatted = barStart ? new Date(barStart).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
   const endFormatted = barEnd ? new Date(barEnd).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
-  const durationText = startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified';
+  const durationText = hasNoBar ? 'Dates not specified — no timeline available' : (startFormatted && endFormatted ? `Start: ${startFormatted} → End: ${endFormatted}` : 'Dates not specified');
 
   const expiryFormatted = po.expiryDate ? new Date(po.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
