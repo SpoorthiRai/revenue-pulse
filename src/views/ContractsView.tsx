@@ -136,22 +136,21 @@ export function ContractsView() {
               {PO_DATA.map((po, idx) => {
                 const barStartDate = po.startDate || po.poDate;
                 const barEndDate = po.endDate || po.expiryDate;
-                const hasEnd = !!barEndDate;
+                const hasNoBar = !barStartDate || !barEndDate;
 
                 const startMs = barStartDate ? new Date(barStartDate).getTime() : timelineStart.getTime();
-                let endMs = hasEnd ? new Date(barEndDate).getTime() : startMs + 30 * 86400000;
-                const isDashed = !hasEnd;
+                let endMs = barEndDate ? new Date(barEndDate).getTime() : startMs;
 
                 const start = Math.max(0, (startMs - timelineStart.getTime()) / 86400000);
                 const dur = Math.max(1, (endMs - startMs) / 86400000);
                 const leftPct = (start / totalDays) * 100;
                 const widthPct = Math.max(2, (dur / totalDays) * 100);
                 const barColor = companyColorMap[po.customer] || '#64748B';
-                const isWide = widthPct > 15;
+                const isWide = !hasNoBar && widthPct > 15;
 
                 const yLabel = po.poNumber && po.poNumber !== '-' && !po.poNumber.startsWith('PO-') ? po.poNumber : po.customer;
 
-                const enrichedPo = { ...po, _barStart: barStartDate, _barEnd: hasEnd ? barEndDate : null };
+                const enrichedPo = { ...po, _barStart: barStartDate, _barEnd: barEndDate, _hasNoBar: hasNoBar };
 
                 return (
                   <div
