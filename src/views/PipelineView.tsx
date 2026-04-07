@@ -295,16 +295,17 @@ export function PipelineView() {
           </ResponsiveContainer>
         </div>
 
-        {/* Change 1: Expected Amount by Company — single bar */}
         <div className="bg-card rounded-lg border p-5">
-          <h3 className="text-sm font-semibold mb-4">Expected Amount by Company</h3>
+          <h3 className="text-sm font-semibold mb-4">Expected vs Negotiated</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={comparisonData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(214,32%,91%)" />
               <XAxis type="number" fontSize={10} tickFormatter={(v) => formatCurrencyShort(v)} />
               <YAxis type="category" dataKey="name" width={100} fontSize={9} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="Expected Amount" fill="#0D9488" radius={[0, 2, 2, 0]} />
+              <Legend fontSize={11} />
+              <Bar dataKey="Expected" fill="hsl(174,83%,52%)" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="Negotiated" fill="hsl(174,83%,32%)" radius={[0, 2, 2, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
