@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useState } from 'react';
 
 const VIEW_TITLES: Record<string, string> = {
   executive: 'Executive Summary',
@@ -18,8 +19,9 @@ const VIEW_TITLES: Record<string, string> = {
 };
 
 export function AppHeader({ activeView }: { activeView: string }) {
-  const { weekStart, weekEnd, setWeekStart, setWeekEnd, setRangeMode } = useWeek();
+  const { weekStart, weekEnd, setWeekStart, setWeekEnd, setRangeMode, rangeMode } = useWeek();
   const { refreshData, isLoading } = useData();
+  const [activePreset, setActivePreset] = useState(rangeMode || '');
 
   const setPreset = (mode: string) => {
     const now = new Date('2025-10-07');
@@ -47,12 +49,14 @@ export function AppHeader({ activeView }: { activeView: string }) {
     setWeekStart(start);
     setWeekEnd(end);
     setRangeMode(mode);
+    setActivePreset(mode);
   };
 
   const handleFromSelect = (date: Date | undefined) => {
     if (date) {
       setWeekStart(date);
       setRangeMode('custom');
+      setActivePreset('');
     }
   };
 
@@ -60,28 +64,35 @@ export function AppHeader({ activeView }: { activeView: string }) {
     if (date) {
       setWeekEnd(date);
       setRangeMode('custom');
+      setActivePreset('');
     }
   };
 
   return (
-    <header className="h-16 bg-card border-b flex items-center justify-between px-6 sticky top-0 z-40">
-      <h2 className="text-lg font-semibold text-foreground">{VIEW_TITLES[activeView]}</h2>
+    <header className="h-16 bg-card flex items-center justify-between px-6 sticky top-0 z-40" style={{ borderBottom: '1px solid hsl(220 13% 95%)' }}>
+      <h2 className="font-medium" style={{ fontSize: '20px', color: '#0F172A' }}>{VIEW_TITLES[activeView]}</h2>
 
       <div className="flex items-center gap-3">
         {/* Refresh Data button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs gap-1.5"
+        <button
           onClick={refreshData}
           disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors duration-150"
+          style={{
+            border: '0.5px solid #14B8A6',
+            color: '#14B8A6',
+            borderRadius: '6px',
+            background: 'transparent',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F0FDFA'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'; }}
         >
-          <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+          <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} style={{ color: '#14B8A6' }} />
           Refresh Data
-        </Button>
+        </button>
 
         {/* Preset buttons */}
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+        <div className="flex items-center gap-1">
           {[
             { key: 'week', label: 'Last Week' },
             { key: 'month', label: 'This Month' },
@@ -92,10 +103,20 @@ export function AppHeader({ activeView }: { activeView: string }) {
             <button
               key={b.key}
               onClick={() => setPreset(b.key)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                'text-muted-foreground hover:text-foreground'
-              )}
+              className="text-xs font-medium transition-colors duration-150"
+              style={{
+                padding: '6px 14px',
+                borderRadius: '6px',
+                backgroundColor: activePreset === b.key ? '#0F172A' : 'transparent',
+                color: activePreset === b.key ? '#FFFFFF' : '#6B7280',
+                border: activePreset === b.key ? 'none' : '0.5px solid #D1D5DB',
+              }}
+              onMouseEnter={e => {
+                if (activePreset !== b.key) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#F1F5F9';
+              }}
+              onMouseLeave={e => {
+                if (activePreset !== b.key) (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+              }}
             >
               {b.label}
             </button>
@@ -106,10 +127,19 @@ export function AppHeader({ activeView }: { activeView: string }) {
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                <CalendarIcon className="h-3.5 w-3.5" />
+              <button
+                className="flex items-center gap-1.5 text-xs"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '0.5px solid #D1D5DB',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                }}
+              >
+                <CalendarIcon className="h-3.5 w-3.5" style={{ color: '#9CA3AF' }} />
                 {format(weekStart, 'dd MMM yyyy')}
-              </Button>
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
@@ -122,14 +152,23 @@ export function AppHeader({ activeView }: { activeView: string }) {
             </PopoverContent>
           </Popover>
 
-          <span className="text-xs text-muted-foreground">to</span>
+          <span className="text-xs" style={{ color: '#9CA3AF' }}>to</span>
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                <CalendarIcon className="h-3.5 w-3.5" />
+              <button
+                className="flex items-center gap-1.5 text-xs"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '0.5px solid #D1D5DB',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                }}
+              >
+                <CalendarIcon className="h-3.5 w-3.5" style={{ color: '#9CA3AF' }} />
                 {format(weekEnd, 'dd MMM yyyy')}
-              </Button>
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
@@ -143,7 +182,7 @@ export function AppHeader({ activeView }: { activeView: string }) {
           </Popover>
         </div>
 
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5" style={{ fontSize: '10px', color: '#9CA3AF', fontStyle: 'italic' }}>
           <Clock className="h-3.5 w-3.5" />
           <span>Updated just now</span>
         </div>
